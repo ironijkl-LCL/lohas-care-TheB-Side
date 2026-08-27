@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>長青達人 · 全民黑膠聲動卡</title>
+
+  <!-- PWA & 行動裝置 Web App 支援標籤 -->
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="黑膠聲動卡" />
+  <meta name="theme-color" content="#0c0a09" />
+
+  <!-- 外部 CDN 套件 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+    .spinning {
+      animation: spin 3.5s linear infinite;
+    }
+    .track-active {
+      stroke: #fbbf24 !important;
+      filter: drop-shadow(0 0 8px #f59e0b);
+      stroke-width: 3.5px !important;
+    }
+    @keyframes scanMove {
+      0% { top: 12%; opacity: 0.9; }
+      100% { top: 85%; opacity: 0.9; }
+    }
+    .scan-line {
+      animation: scanMove 2s ease-in-out infinite alternate;
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    /* 強化點擊熱區與原生觸控體驗 */
+    button, input, select {
+      touch-action: manipulation;
+    }
+  </style>
+</head>
+<body class="bg-[#0c0a09] text-stone-100 min-h-screen flex flex-col items-center justify-between p-4 sm:p-6 select-none font-sans overflow-x-hidden">
+
+  <!-- 頂部身分與優惠券入口 -->
+  <header class="w-full max-w-sm flex items-center justify-between mt-1 px-1">
+    <div class="flex flex-col text-left">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="px-2.5 py-0.5 bg-amber-500/20 border border-amber-500/50 rounded-full text-xs font-black tracking-widest text-amber-300">
+          ★ VINYL CLUB ★
+        </span>
+        <span id="tier-badge" class="px-2.5 py-0.5 bg-stone-800 border border-stone-700 rounded-full text-xs font-bold text-amber-200">
+          青銅樂迷
+        </span>
+      </div>
+      <h1 class="text-2xl font-black italic tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-500">
+        長青 · 掃碼黑膠
+      </h1>
+      <p class="text-sm text-stone-400 font-medium">陳大文 先生 (VIP #8821)</p>
+    </div>
+
+    <!-- 禮券包按鈕 -->
+    <button onclick="openVoucherModal()" class="relative min-w-[56px] min-h-[56px] bg-stone-800 hover:bg-stone-700 border-2 border-amber-500/50 p-2 rounded-2xl flex flex-col items-center justify-center active:scale-95 transition shadow-lg" aria-label="打開禮券包">
+      <span class="text-2xl leading-none">🎟️</span>
+      <span class="text-xs font-bold text-amber-300 mt-1">禮券包</span>
+      <span id="voucher-badge-count" class="absolute -top-1.5 -right-1.5 bg-amber-500 text-stone-950 text-xs font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md hidden">
+        0
+      </span>
+    </button>
+  </header>
+
+  <!-- 黑膠唱片核心視覺區 -->
+  <div class="relative flex items-center justify-center my-3">
+    <svg id="vinyl" class="w-64 h-64 sm:w-72 sm:h-72 transition-transform duration-700 shadow-2xl rounded-full" viewBox="0 0 200 200">
+      <circle cx="100" cy="100" r="96" fill="#141414" stroke="#383531" stroke-width="3"/>
+
+      <!-- 10 圈細緻活動音軌 (半徑 88 至 34) -->
+      <circle id="track-1" cx="100" cy="100" r="88" fill="none" stroke="#2b2826" stroke-width="2.5" stroke-dasharray="4,3"/>
+      <circle id="track-2" cx="100" cy="100" r="82" fill="none" stroke="#2b2826" stroke-width="2.5" stroke-dasharray="4,3"/>
+      <circle id="track-3" cx="100" cy="100" r="76" fill="none" stroke="#2b2826" stroke-width="2.5" stroke-dasharray="4,3"/>
+      <circle id="track-4" cx="100" cy="100" r="70" fill="none" stroke="#2b2826" stroke-width="2.5" stroke-dasharray="4,3"/>
+      <circle id="track-5" cx="100" cy="100" r="64" fill="none" stroke="#2b2826" stroke-width="2.5" stroke-dasharray="4,3"/>
+      <circle id="track-6" cx="100" cy="100" r="58" fill="none" stroke="#2b2826" stroke-width="2.5" stroke-dasharray="4,3"/>
+      <circle id="track-7" cx="100" cy="100" r="52" fill="none" stroke="#2b2826" stroke-width="2.5" stroke-dasharray="4,3"/>
+      <circle id="track-8" cx="100" cy="100" r="46" fill="none" stroke="#2b2826" stroke-width="2.5" stroke-dasharray="4,3"/>
+      <circle id="track-9" cx="100" cy="100" r="40" fill="none" stroke="#2b2826" stroke-width="2.5" stroke-dasharray="4,3"/>
+      <circle id="track-10" cx="100" cy="100" r="34" fill="none" stroke="#2b2826" stroke-width="2.5" stroke-dasharray="4,3"/>
+
+      <!-- 唱片中心標籤 -->
+      <circle cx="100" cy="100" r="23" fill="#b45309" stroke="#fbbf24" stroke-width="2.5"/>
+      <circle cx="100" cy="100" r="5.5" fill="#0c0a09"/>
+      <text x="100" y="96" text-anchor="middle" fill="#fff" font-size="6.5" font-weight="900" letter-spacing="1">MASTER</text>
+      <text id="vinyl-vol-label" x="100" y="106" text-anchor="middle" fill="#fef08a" font-size="5.5" font-family="monospace" font-weight="bold">VOL.1</text>
+    </svg>
+
+    <!-- 滿額金唱片達成浮水印 -->
+    <div id="badge-overlay" class="absolute inset-0 flex items-center justify-center pointer-events-none hidden">
+      <span class="bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-stone-950 text-xl font-black px-5 py-2.5 rounded-full shadow-2xl border-2 border-white scale-110 animate-bounce">
+        🏆 尊享金唱片！
+      </span>
+    </div>
+  </div>
+
+  <!-- 階梯里程碑進度條 (3/6/10 軌) -->
+  <div class="w-full max-w-sm bg-stone-900/90 border border-stone-800 rounded-2xl p-4 my-2 shadow-md">
+    <div class="flex justify-between items-baseline mb-2">
+      <span class="text-sm font-bold text-stone-300">目前進度：<strong id="visit-count" class="text-3xl text-amber-400 font-mono font-black ml-1">0</strong>/10 軌</span>
+      <span id="next-milestone-hint" class="text-xs text-amber-300 font-bold">再掃 3 軌解鎖 3軌小禮</span>
+    </div>
+
+    <!-- 進度槽 -->
+    <div class="w-full bg-stone-950 rounded-full h-3.5 overflow-hidden flex border border-stone-800 p-0.5">
+      <div id="progress-bar-fill" class="bg-gradient-to-r from-amber-500 to-yellow-400 h-full rounded-full transition-all duration-500" style="width: 0%"></div>
+    </div>
+
+    <div class="flex justify-between text-xs text-stone-400 mt-2 font-bold">
+      <span id="step-3" class="transition-colors">🎁 3軌-街坊禮</span>
+      <span id="step-6" class="transition-colors">☕ 6軌-咖啡券</span>
+      <span id="step-10" class="transition-colors">📀 10軌-金黑膠</span>
+    </div>
+  </div>
+
+  <!-- 黑膠收藏木架 -->
+  <div class="w-full max-w-sm bg-stone-900/70 border border-stone-800 rounded-2xl px-4 py-3 flex items-center justify-between my-1">
+    <span class="text-sm font-bold text-stone-300">已集齊典藏黑膠：<strong id="saved-count" class="text-amber-400 font-mono text-base ml-1">0</strong> 隻</span>
+    <div id="vinyl-crate" class="flex gap-2 overflow-x-auto max-w-[160px] py-1 no-scrollbar items-center">
+      <span id="empty-crate-hint" class="text-xs text-stone-500 italic">暫無收藏</span>
+    </div>
+  </div>
+
+  <!-- 操作狀態提示 -->
+  <p id="status-msg" class="text-sm text-stone-300 text-center my-2 min-h-[20px] font-medium">請掃描現場活動專屬 QR Code 或條碼</p>
+
+  <!-- 底部核心操作區 -->
+  <div class="w-full max-w-sm flex flex-col gap-3 mt-1 mb-2">
+    <button onclick="startScannerModal()" class="w-full min-h-[52px] bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 hover:brightness-110 active:scale-95 text-stone-950 text-lg font-black py-3 rounded-2xl shadow-xl transition flex items-center justify-center gap-2">
+      <span class="text-xl">📷</span> 開啟相機掃碼
+    </button>
+
+    <div class="flex gap-2.5">
+      <button onclick="simulateScan()" class="flex-1 min-h-[44px] py-2.5 bg-stone-800 hover:bg-stone-700 active:scale-95 text-stone-200 font-bold rounded-xl text-sm border border-stone-700 flex items-center justify-center">
+        ⚡ 模擬打卡測試
+      </button>
+      <button onclick="resetData()" class="px-5 min-h-[44px] py-2.5 bg-stone-900 hover:bg-stone-800 active:scale-95 text-stone-400 hover:text-stone-300 font-bold rounded-xl text-sm border border-stone-800 flex items-center justify-center">
+        重設
+      </button>
+    </div>
+  </div>
+
+  <!-- 彈窗 1：相機掃碼 Modal -->
+  <div id="scanner-modal" class="fixed inset-0 bg-black/95 z-50 flex flex-col items-center justify-between p-5 hidden">
+    <div class="w-full max-w-sm flex justify-between items-center text-amber-400 pt-2">
+      <h2 class="text-lg font-black">對準攤位 QR Code</h2>
+      <button onclick="closeScannerModal()" class="w-11 h-11 flex items-center justify-center text-2xl font-bold bg-stone-800 rounded-full text-stone-200 active:scale-95">✕</button>
+    </div>
+
+    <!-- 取景框 -->
+    <div class="w-full max-w-xs aspect-square bg-stone-950 rounded-2xl overflow-hidden border-2 border-amber-400/70 relative flex items-center justify-center shadow-2xl">
+      <div id="qr-reader" class="w-full h-full"></div>
+      <div class="absolute inset-4 pointer-events-none border-2 border-dashed border-amber-400/50 rounded-xl"></div>
+      <div class="absolute w-full h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent scan-line pointer-events-none"></div>
+    </div>
+
+    <!-- 提示與求助按鈕 -->
+    <div class="w-full max-w-sm text-center px-4">
+      <p id="scanner-tip" class="text-stone-300 text-sm mb-3">請將鏡頭保持約 15-20cm 距離，避免強光反光</p>
+      <button onclick="triggerStaffAssist()" class="min-h-[44px] text-sm text-amber-300 underline font-bold px-3 py-2">
+        對唔到焦？點擊尋求現場大使協助
+      </button>
+    </div>
+
+    <button onclick="closeScannerModal()" class="w-full max-w-sm min-h-[48px] py-3 bg-stone-800 text-stone-200 font-bold rounded-2xl text-base active:scale-95">
+      關閉相機
+    </button>
+  </div>
+
+  <!-- 彈窗 2：B-Side 即時盲盒中獎 Modal -->
+  <div id="reward-modal" class="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-stone-900 border-2 border-amber-400 rounded-3xl max-w-xs w-full p-6 text-center shadow-2xl">
+      <div class="w-14 h-14 mx-auto bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center text-3xl mb-3">
+        🎶
+      </div>
+      <h3 class="text-lg font-black text-amber-300 tracking-wide">B-Side 即時盲盒賞！</h3>
+      <p id="reward-name" class="text-xl font-black text-white my-4 py-3 px-3 bg-stone-950 rounded-2xl border border-stone-800 text-amber-200">
+        $3 街坊買餸現金券
+      </p>
+      <p id="reward-desc" class="text-sm text-stone-300 mb-5 leading-relaxed">
+        獎券已自動存入「我的禮券包」，出示即可在現場攤位核銷使用。
+      </p>
+      <button onclick="closeRewardModal()" class="w-full min-h-[48px] py-3 bg-gradient-to-r from-amber-500 to-yellow-400 text-stone-950 font-black rounded-2xl text-base active:scale-95 shadow-lg">
+        收下獎賞並繼續
+      </button>
+    </div>
+  </div>
+
+  <!-- 彈窗 3：我的禮券包 Modal -->
+  <div id="voucher-modal" class="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-between p-5 hidden">
+    <div class="w-full max-w-sm flex justify-between items-center text-amber-400 pt-2">
+      <h2 class="text-xl font-black flex items-center gap-2">🎟️ 我的禮券包</h2>
+      <button onclick="closeVoucherModal()" class="w-11 h-11 flex items-center justify-center text-2xl font-bold bg-stone-800 rounded-full text-stone-200 active:scale-95">✕</button>
+    </div>
+
+    <!-- 禮券清單 -->
+    <div id="voucher-list" class="w-full max-w-sm flex-1 overflow-y-auto my-4 flex flex-col gap-3 pr-1 no-scrollbar">
+      <!-- 動態插入禮券項目 -->
+    </div>
+
+    <button onclick="closeVoucherModal()" class="w-full max-w-sm min-h-[48px] py-3 bg-stone-800 text-stone-200 font-bold rounded-2xl text-base active:scale-95">
+      返回黑膠唱片
+    </button>
+  </div>
+
+  <!-- 彈窗 4：商戶現場核銷 Modal (自適應滑塊) -->
+  <div id="redeem-modal" class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-stone-900 border border-stone-700 rounded-3xl max-w-xs w-full p-6 text-center shadow-2xl">
+      <h3 class="text-lg font-black text-amber-400 mb-2">職員現場核銷</h3>
+      <p id="redeem-modal-name" class="text-base font-bold text-white mb-4"></p>
+      <p class="text-sm text-stone-300 mb-5 leading-relaxed">請將手機出示予職員，向右滑動確認核銷：</p>
+
+      <!-- 動態自適應寬度滑塊 -->
+      <div id="slider-track-container" class="relative w-full bg-stone-950 border border-stone-800 rounded-full h-14 flex items-center px-1 overflow-hidden">
+        <div id="slider-track-text" class="absolute inset-0 flex items-center justify-center text-sm font-bold text-stone-500 pointer-events-none">
+          向右滑動確認 ➔
+        </div>
+        <input 
+          type="range" 
+          id="redeem-slider" 
+          min="0" 
+          max="100" 
+          value="0" 
+          class="w-full opacity-0 z-20 cursor-pointer h-full" 
+          oninput="handleSliderChange(this.value)"
+          ontouchend="handleSliderRelease()"
+          onmouseup="handleSliderRelease()"
+        />
+        <div id="slider-thumb-bg" class="absolute left-1 w-12 h-12 bg-amber-500 rounded-full flex items-center justify-center text-stone-950 font-black text-xl pointer-events-none shadow-md transition-transform duration-75">
+          ✓
+        </div>
+      </div>
+
+      <button onclick="closeRedeemModal()" class="mt-5 min-h-[44px] text-sm text-stone-400 hover:text-stone-300 font-medium px-4 py-2">
+        取消返回
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // 儲存鍵名與核心變數
+    const STORAGE_KEY = 'vinyl_master_progress_v4';
+    const MAX_VISITS = 10;
+    const QR_PREFIX = 'VINYL_BOOTH_'; // 專用活動 QR 驗證前綴
+
+    let visits = 0;
+    let totalSavedDiscs = 0;
+    let scannedCodes = new Set();
+    let vouchers = []; 
+    let isProcessing = false;
+    let currentRedeemingId = null;
+    let html5QrCode = null;
+    let audioCtx = null;
+
+    // 盲盒獎品資料庫
+    const surprisePool = [
+      { title: "🥬 街市買餸 $3 現金券", desc: "指定菜檔/乾貨攤滿 $20 即減。" },
+      { title: "☕ 快閃手沖咖啡 8 折券", desc: "快閃咖啡攤位全單享 8 折優惠。" },
+      { title: "🧻 皇冠衛生紙 1 卷換領券", desc: "憑券到商場服務台免費領取。" },
+      { title: "🥤 長青養生草本飲 1 罐", desc: "健康滿分，服務台即時兌領。" },
+      { title: "✨ 攤位額外專屬印花 × 1", desc: "特殊加乘，加速黑膠唱片壓製！" }
+    ];
+
+    // Web Audio 音效引擎
+    function ensureAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+    document.addEventListener('click', ensureAudioContext, { once: true });
+    document.addEventListener('touchstart', ensureAudioContext, { once: true });
+
+    function playVinylBeep(freq = 523.25) {
+      try {
+        ensureAudioContext();
+        if (!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.35);
+      } catch (e) {
+        console.warn("Audio Context error:", e);
+      }
+    }
+
+    // 廣東話語音播報
+    function speakCantonese(text) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'zh-HK';
+        utter.rate = 0.95; // 語速稍慢以方便長者聆聽
+        window.speechSynthesis.speak(utter);
+      }
+    }
+
+    // 本地存檔讀取與儲存
+    function loadProgress() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const data = JSON.parse(saved);
+          visits = data.visits || 0;
+          totalSavedDiscs = data.totalSavedDiscs || 0;
+          scannedCodes = new Set(data.scannedCodes || []);
+          vouchers = data.vouchers || [];
+        }
+      } catch (e) {
+        console.error("無法讀取存檔:", e);
+      }
+      renderUI();
+    }
+
+    function saveProgress() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          visits,
+          totalSavedDiscs,
+          scannedCodes: Array.from(scannedCodes),
+          vouchers
+        }));
+      } catch (e) {
+        console.error("無法儲存進度:", e);
+      }
+    }
+
+    // 介面渲染更新
+    function renderUI() {
+      document.getElementById('visit-count').innerText = visits;
+      document.getElementById('saved-count').innerText = totalSavedDiscs;
+      document.getElementById('vinyl-vol-label').innerText = `VOL.${totalSavedDiscs + 1}`;
+      document.getElementById('progress-bar-fill').style.width = `${(visits / MAX_VISITS) * 100}%`;
+
+      // 階梯節點提示
+      const hint = document.getElementById('next-milestone-hint');
+      const step3 = document.getElementById('step-3');
+      const step6 = document.getElementById('step-6');
+      const step10 = document.getElementById('step-10');
+
+      step3.className = visits >= 3 ? "text-amber-300 font-black" : "text-stone-500 font-bold";
+      step6.className = visits >= 6 ? "text-amber-300 font-black" : "text-stone-500 font-bold";
+      step10.className = visits >= 10 ? "text-amber-300 font-black" : "text-stone-500 font-bold";
+
+      if (visits < 3) hint.innerText = `再掃 ${3 - visits} 軌解鎖 3軌小禮`;
+      else if (visits < 6) hint.innerText = `再掃 ${6 - visits} 軌解鎖 6軌咖啡券`;
+      else if (visits < 10) hint.innerText = `再掃 ${10 - visits} 軌壓製金黑膠`;
+      else hint.innerText = `已完成本張黑膠！`;
+
+      // 段位頭銜更新
+      const tierBadge = document.getElementById('tier-badge');
+      if (totalSavedDiscs === 0) tierBadge.innerText = '青銅樂迷';
+      else if (totalSavedDiscs < 3) tierBadge.innerText = '白金發燒友 🥈';
+      else tierBadge.innerText = '金唱片宗師 👑';
+
+      // 點亮音軌
+      for (let i = 1; i <= MAX_VISITS; i++) {
+        const track = document.getElementById(`track-${i}`);
+        if (track) {
+          if (i <= visits) track.classList.add('track-active');
+          else track.classList.remove('track-active');
+        }
+      }
+
+      // 黑膠收藏架
+      const crate = document.getElementById('vinyl-crate');
+      crate.innerHTML = '';
+      if (totalSavedDiscs === 0) {
+        crate.innerHTML = '<span id="empty-crate-hint" class="text-xs text-stone-500 italic">暫無收藏</span>';
+      } else {
+        for (let i = 1; i <= totalSavedDiscs; i++) {
+          const disc = document.createElement('div');
+          disc.className = "flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-tr from-amber-600 via-yellow-400 to-amber-700 border-2 border-yellow-200 shadow-md flex items-center justify-center text-stone-950 font-black text-xs";
+          disc.innerText = `${i}`;
+          crate.appendChild(disc);
+        }
+      }
+
+      // 未使用禮券角標
+      const unredeemedCount = vouchers.filter(v => !v.redeemed).length;
+      const badge = document.getElementById('voucher-badge-count');
+      if (unredeemedCount > 0) {
+        badge.innerText = unredeemedCount;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    // 相機掃碼模組
+    function startScannerModal() {
+      ensureAudioContext();
+      document.getElementById('scanner-modal').classList.remove('hidden');
+      if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode("qr-reader");
+      }
+
+      const config = { fps: 10, qrbox: { width: 220, height: 220 } };
+      html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        (decodedText) => {
+          closeScannerModal();
+          recordSuccessfulScan(decodedText);
+        },
+        () => {}
+      ).catch(() => {
+        alert("未能啟動相機。若使用通訊軟件內建瀏覽器，請點擊右上角改用 Safari 或 Chrome 開啟。");
+        closeScannerModal();
+      });
+    }
+
+    function closeScannerModal() {
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().then(() => {
+          document.getElementById('scanner-modal').classList.add('hidden');
+        }).catch(() => {
+          document.getElementById('scanner-modal').classList.add('hidden');
+        });
+      } else {
+        document.getElementById('scanner-modal').classList.add('hidden');
+      }
+    }
+
+    function triggerStaffAssist() {
+      closeScannerModal();
+      simulateScan();
+    }
+
+    // 掃碼成功邏輯
+    async function recordSuccessfulScan(decodedData) {
+      if (isProcessing) return;
+      isProcessing = true;
+
+      // 檢查是否為大會格式碼（若非大會專用碼且非測試碼，給予長者提示）
+      if (!decodedData.startsWith(QR_PREFIX) && !decodedData.startsWith("DEMO_")) {
+        // 為兼顧通用測試，非官方格式仍允許作為示範打卡，但給予提示
+        console.warn("掃描到非標準格式二維碼:", decodedData);
+      }
+
+      if (visits >= MAX_VISITS) {
+        speakCantonese("陳生，呢張唱片已經滿額，即將開啟下一張！");
+        isProcessing = false;
+        return;
+      }
+
+      // 防重複掃碼
+      if (scannedCodes.has(decodedData)) {
+        document.getElementById('status-msg').innerText = `⚠️ 此攤位已打過卡，請前往其他攤位`;
+        speakCantonese("陳生，呢個攤位已經打過卡喇！");
+        setTimeout(() => { isProcessing = false; }, 600);
+        return;
+      }
+
+      // 成功打卡
+      scannedCodes.add(decodedData);
+      visits++;
+      saveProgress();
+      renderUI();
+
+      const vinyl = document.getElementById('vinyl');
+      vinyl.classList.add('spinning');
+      playVinylBeep(520 + (visits * 45));
+
+      if (visits === MAX_VISITS) {
+        setTimeout(() => {
+          confetti({ particleCount: 160, spread: 85, origin: { y: 0.6 } });
+          document.getElementById('badge-overlay').classList.remove('hidden');
+          document.getElementById('status-msg').innerText = `🎉 恭喜！已壓製成第 ${totalSavedDiscs + 1} 張典藏金黑膠！`;
+          speakCantonese("太犀利喇！恭喜陳生完成十次打卡，成功壓製一張典藏金黑膠！");
+
+          vouchers.unshift({
+            id: Date.now(),
+            title: `📀 第 ${totalSavedDiscs + 1} 張金黑膠實體尊享禮`,
+            desc: "憑此券於服務台領取商場金唱片大禮包一份。",
+            redeemed: false,
+            date: new Date().toLocaleDateString()
+          });
+
+          saveCurrentDiscToCrate();
+        }, 400);
+      } else {
+        setTimeout(() => {
+          triggerSurpriseReward();
+        }, 400);
+      }
+    }
+
+    function triggerSurpriseReward() {
+      const prize = surprisePool[Math.floor(Math.random() * surprisePool.length)];
+
+      vouchers.unshift({
+        id: Date.now(),
+        title: prize.title,
+        desc: prize.desc,
+        redeemed: false,
+        date: new Date().toLocaleDateString()
+      });
+      saveProgress();
+      renderUI();
+
+      document.getElementById('reward-name').innerText = prize.title;
+      document.getElementById('reward-desc').innerText = prize.desc;
+      document.getElementById('reward-modal').classList.remove('hidden');
+      document.getElementById('status-msg').innerText = `已點亮第 ${visits} 圈音軌，獲得即時獎勵！`;
+      speakCantonese(`掃描成功！恭喜陳生抽到 ${prize.title}！`);
+    }
+
+    function closeRewardModal() {
+      document.getElementById('reward-modal').classList.add('hidden');
+      isProcessing = false;
+    }
+
+    function saveCurrentDiscToCrate() {
+      totalSavedDiscs++;
+      visits = 0;
+      scannedCodes.clear();
+      saveProgress();
+
+      setTimeout(() => {
+        renderUI();
+        document.getElementById('status-msg').innerText = '已開啟全新黑膠唱片，請繼續掃碼！';
+        document.getElementById('badge-overlay').classList.add('hidden');
+        document.getElementById('vinyl').classList.remove('spinning');
+        isProcessing = false;
+      }, 2800);
+    }
+
+    // 禮券包列表
+    function openVoucherModal() {
+      const list = document.getElementById('voucher-list');
+      list.innerHTML = '';
+
+      if (vouchers.length === 0) {
+        list.innerHTML = `
+          <div class="py-12 text-center text-stone-500">
+            <span class="text-4xl block mb-3">📭</span>
+            <p class="text-sm font-bold">目前未有禮券，快啲去掃碼打卡啦！</p>
+          </div>
+        `;
+      } else {
+        vouchers.forEach(v => {
+          const item = document.createElement('div');
+          item.className = `p-4 rounded-2xl border text-left flex items-center justify-between ${
+            v.redeemed ? 'bg-stone-950/60 border-stone-800 opacity-60' : 'bg-stone-900 border-amber-500/50 shadow-md'
+          }`;
+          item.innerHTML = `
+            <div class="flex-1 pr-3">
+              <h4 class="text-base font-black ${v.redeemed ? 'text-stone-400 line-through' : 'text-amber-300'}">${v.title}</h4>
+              <p class="text-xs text-stone-300 mt-1">${v.desc}</p>
+              <span class="text-xs text-stone-500 block mt-1.5">${v.date} ${v.redeemed ? '· (已完成現場核銷)' : ''}</span>
+            </div>
+            <div>
+              ${v.redeemed 
+                ? '<span class="text-xs font-bold text-stone-500 px-3 py-1.5 bg-stone-950 rounded-xl">已核銷</span>' 
+                : `<button onclick="openRedeemModal(${v.id})" class="min-h-[44px] px-4 py-2 bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-sm rounded-xl active:scale-95 shadow-md">出示核銷</button>`
+              }
+            </div>
+          `;
+          list.appendChild(item);
+        });
+      }
+
+      document.getElementById('voucher-modal').classList.remove('hidden');
+    }
+
+    function closeVoucherModal() {
+      document.getElementById('voucher-modal').classList.add('hidden');
+    }
+
+    // 核銷滑塊視窗
+    function openRedeemModal(id) {
+      currentRedeemingId = id;
+      const voucher = vouchers.find(v => v.id === id);
+      if (!voucher) return;
+
+      document.getElementById('redeem-modal-name').innerText = voucher.title;
+      const slider = document.getElementById('redeem-slider');
+      slider.value = 0;
+      updateSliderVisual(0);
+
+      document.getElementById('redeem-modal').classList.remove('hidden');
+    }
+
+    function closeRedeemModal() {
+      document.getElementById('redeem-modal').classList.add('hidden');
+      currentRedeemingId = null;
+    }
+
+    // 動態計算滑塊位移（解決固定 260px 造成的螢幕跑版問題）
+    function updateSliderVisual(val) {
+      const slider = document.getElementById('redeem-slider');
+      const thumb = document.getElementById('slider-thumb-bg');
+      const container = document.getElementById('slider-track-container');
+      
+      const maxOffset = container.clientWidth - thumb.clientWidth - 8;
+      const offset = (val / 100) * maxOffset;
+      thumb.style.transform = `translateX(${Math.max(0, offset)}px)`;
+    }
+
+    function handleSliderChange(val) {
+      updateSliderVisual(val);
+      if (val >= 92) {
+        const voucher = vouchers.find(v => v.id === currentRedeemingId);
+        if (voucher) {
+          voucher.redeemed = true;
+          saveProgress();
+          renderUI();
+          playVinylBeep(880);
+          speakCantonese("獎券核銷成功，多謝支持！");
+          closeRedeemModal();
+          openVoucherModal();
+        }
+      }
+    }
+
+    // 放手自動回彈未滑到底的滑塊
+    function handleSliderRelease() {
+      const slider = document.getElementById('redeem-slider');
+      if (slider.value < 92) {
+        slider.value = 0;
+        updateSliderVisual(0);
+      }
+    }
+
+    // 模擬測試生成唯一碼
+    function simulateScan() {
+      const demoCode = `${QR_PREFIX}DEMO_${visits + 1}_${Date.now()}`;
+      recordSuccessfulScan(demoCode);
+    }
+
+    function resetData() {
+      if (!confirm("確定要重設所有黑膠進度、收藏紀錄與禮券包嗎？")) return;
+      visits = 0;
+      totalSavedDiscs = 0;
+      scannedCodes.clear();
+      vouchers = [];
+      saveProgress();
+      renderUI();
+      document.getElementById('status-msg').innerText = '請掃描現場活動專屬 QR Code 或條碼';
+      document.getElementById('badge-overlay').classList.add('hidden');
+      document.getElementById('vinyl').classList.remove('spinning');
+      isProcessing = false;
+    }
+
+    // 視窗尺寸改變時重算滑塊
+    window.addEventListener('resize', () => {
+      const slider = document.getElementById('redeem-slider');
+      if (slider) updateSliderVisual(slider.value);
+    });
+
+    // 初始化載入
+    window.addEventListener('DOMContentLoaded', loadProgress);
+  </script>
+</body>
+</html>
