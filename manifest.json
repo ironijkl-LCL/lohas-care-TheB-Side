@@ -1,0 +1,26 @@
+{
+  "name": "長青達人 · 全民黑膠聲動卡",
+  "short_name": "黑膠聲動卡",
+  "description": "長者專屬現場黑膠掃碼集點與優惠換領系統",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0c0a09",
+  "theme_color": "#0c0a09",
+  "lang": "zh-HK",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
