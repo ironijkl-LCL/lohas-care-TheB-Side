@@ -3,27 +3,34 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>長青達人 · 全民黑膠聲動卡</title>
+  <meta name="version" content="5.1-production-bside" />
+  <title>The B-Side 黑膠B面</title>
 
-  <!-- PWA & 行動裝置 Web App 支援標籤 -->
+  <!-- PWA & 行動裝置 Web App 支援 -->
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="黑膠聲動卡" />
+  <meta name="apple-mobile-web-app-title" content="The B-Side" />
   <meta name="theme-color" content="#0c0a09" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
 
-  <!-- 外部 CDN 套件 -->
-  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- CDN 載入失敗時的降級樣式 -->
+  <style>
+    body { margin: 0; background: #0c0a09; color: #f5f5f4; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+    .cdn-fail { display: none; text-align: center; padding: 40px 20px; }
+    .cdn-fail h1 { color: #fbbf24; font-size: 20px; }
+    .cdn-fail p { color: #a8a29e; font-size: 14px; line-height: 1.8; }
+  </style>
+
+  <!-- 外部套件 CDN (含降級捕捉) -->
+  <script src="https://cdn.tailwindcss.com" onerror="document.getElementById('cdn-fallback').style.display='block'"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
   <style>
-    @keyframes spin {
-      100% { transform: rotate(360deg); }
-    }
-    .spinning {
-      animation: spin 3.5s linear infinite;
-    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+    .spinning { animation: spin 3.5s linear infinite; }
     .track-active {
       stroke: #fbbf24 !important;
       filter: drop-shadow(0 0 8px #f59e0b);
@@ -33,35 +40,45 @@
       0% { top: 12%; opacity: 0.9; }
       100% { top: 85%; opacity: 0.9; }
     }
-    .scan-line {
-      animation: scanMove 2s ease-in-out infinite alternate;
-    }
+    .scan-line { animation: scanMove 2s ease-in-out infinite alternate; }
     .no-scrollbar::-webkit-scrollbar { display: none; }
     .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    
-    /* 強化點擊熱區與原生觸控體驗 */
-    button, input, select {
-      touch-action: manipulation;
-    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+    body { overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent; }
+    button, input, select { touch-action: manipulation; }
   </style>
 </head>
 <body class="bg-[#0c0a09] text-stone-100 min-h-screen flex flex-col items-center justify-between p-4 sm:p-6 select-none font-sans overflow-x-hidden">
 
-  <!-- 頂部身分與優惠券入口 -->
+  <!-- CDN 載入失敗提示 -->
+  <div id="cdn-fallback" class="cdn-fail">
+    <h1>⚠️ 網絡連線不穩定</h1>
+    <p>部分核心資源未能載入，請檢查網絡後重新整理頁面。<br>如持續出現，請聯絡現場工作人員。</p>
+  </div>
+
+  <!-- 離線提示頂條 -->
+  <div id="offline-bar" class="fixed top-0 left-0 right-0 bg-amber-600 text-stone-950 text-xs font-bold text-center py-1.5 z-50 shadow-md hidden">
+    📡 網絡已離線，現場核銷與本地記錄仍可繼續使用
+  </div>
+
+  <!-- 頂部身分與禮券包入口 -->
   <header class="w-full max-w-sm flex items-center justify-between mt-1 px-1">
     <div class="flex flex-col text-left">
       <div class="flex items-center gap-2 mb-1">
-        <span class="px-2.5 py-0.5 bg-amber-500/20 border border-amber-500/50 rounded-full text-xs font-black tracking-widest text-amber-300">
-          ★ VINYL CLUB ★
+        <span id="season-badge" class="px-2.5 py-0.5 bg-amber-500/20 border border-amber-500/50 rounded-full text-xs font-black tracking-wider text-amber-300">
+          🌸 春季 · 花韻鳴響
         </span>
-        <span id="tier-badge" class="px-2.5 py-0.5 bg-stone-800 border border-stone-700 rounded-full text-xs font-bold text-amber-200">
+        <span id="tier-badge" class="px-2 py-0.5 bg-stone-800 border border-stone-700 rounded-full text-xs font-bold text-amber-200">
           青銅樂迷
         </span>
       </div>
       <h1 class="text-2xl font-black italic tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-amber-400 to-yellow-500">
-        長青 · 掃碼黑膠
+        The B-Side · 黑膠B面
       </h1>
-      <p class="text-sm text-stone-400 font-medium">陳大文 先生 (VIP #8821)</p>
+      <p id="user-profile-display" class="text-sm text-stone-300 font-medium mt-0.5">
+        載入中...
+      </p>
     </div>
 
     <!-- 禮券包按鈕 -->
@@ -74,8 +91,21 @@
     </button>
   </header>
 
+  <!-- 家庭成員切換 Tab (代掃與多帳號檢視) -->
+  <nav class="w-full max-w-sm bg-stone-950 p-1.5 rounded-2xl border border-stone-800 my-2 flex items-center justify-between gap-1 shadow-inner">
+    <button id="tab-btn-0" onclick="switchAccount(0)" class="flex-1 py-2 px-1 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 bg-amber-500 text-stone-950 shadow-md">
+      <span>👤</span> <span id="tab-name-0">我嘅進度</span>
+    </button>
+    <button id="tab-btn-1" onclick="switchAccount(1)" class="flex-1 py-2 px-1 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 text-stone-400 hover:text-stone-200">
+      <span>👴🏻</span> <span id="tab-name-1">阿爺進度</span>
+    </button>
+    <button id="tab-btn-2" onclick="switchAccount(2)" class="flex-1 py-2 px-1 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 text-stone-400 hover:text-stone-200">
+      <span>🧒🏻</span> <span id="tab-name-2">仔仔進度</span>
+    </button>
+  </nav>
+
   <!-- 黑膠唱片核心視覺區 -->
-  <div class="relative flex items-center justify-center my-3">
+  <div class="relative flex items-center justify-center my-2">
     <svg id="vinyl" class="w-64 h-64 sm:w-72 sm:h-72 transition-transform duration-700 shadow-2xl rounded-full" viewBox="0 0 200 200">
       <circle cx="100" cy="100" r="96" fill="#141414" stroke="#383531" stroke-width="3"/>
 
@@ -91,26 +121,56 @@
       <circle id="track-9" cx="100" cy="100" r="40" fill="none" stroke="#2b2826" stroke-width="2.5" stroke-dasharray="4,3"/>
       <circle id="track-10" cx="100" cy="100" r="34" fill="none" stroke="#2b2826" stroke-width="2.5" stroke-dasharray="4,3"/>
 
-      <!-- 唱片中心標籤 -->
-      <circle cx="100" cy="100" r="23" fill="#b45309" stroke="#fbbf24" stroke-width="2.5"/>
+      <!-- 唱片中心標籤 (隨季節動態變色) -->
+      <circle id="vinyl-center-bg" cx="100" cy="100" r="23" fill="#047857" stroke="#34d399" stroke-width="2.5"/>
       <circle cx="100" cy="100" r="5.5" fill="#0c0a09"/>
-      <text x="100" y="96" text-anchor="middle" fill="#fff" font-size="6.5" font-weight="900" letter-spacing="1">MASTER</text>
-      <text id="vinyl-vol-label" x="100" y="106" text-anchor="middle" fill="#fef08a" font-size="5.5" font-family="monospace" font-weight="bold">VOL.1</text>
+      <text id="vinyl-center-season" x="100" y="95" text-anchor="middle" fill="#fff" font-size="6" font-weight="900" letter-spacing="1">SPRING</text>
+      <text id="vinyl-center-vol" x="100" y="106" text-anchor="middle" fill="#fef08a" font-size="5" font-family="monospace" font-weight="bold">VOL.1</text>
     </svg>
 
-    <!-- 滿額金唱片達成浮水印 -->
+    <!-- 季滿或年度大滿貫達成浮水印 -->
     <div id="badge-overlay" class="absolute inset-0 flex items-center justify-center pointer-events-none hidden">
-      <span class="bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-stone-950 text-xl font-black px-5 py-2.5 rounded-full shadow-2xl border-2 border-white scale-110 animate-bounce">
-        🏆 尊享金唱片！
+      <span id="badge-overlay-text" class="bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-stone-950 text-xl font-black px-5 py-2.5 rounded-full shadow-2xl border-2 border-white scale-110 animate-bounce">
+        🏆 季滿尊享黑膠！
       </span>
     </div>
   </div>
 
-  <!-- 階梯里程碑進度條 (3/6/10 軌) -->
-  <div class="w-full max-w-sm bg-stone-900/90 border border-stone-800 rounded-2xl p-4 my-2 shadow-md">
+  <!-- 四季黑膠木架 (4 季圖標 + 年度大碟) -->
+  <div class="w-full max-w-sm bg-stone-900/90 border border-stone-800 rounded-2xl px-3 py-2.5 my-1.5 shadow-md">
+    <div class="flex items-center justify-between mb-1.5 px-1">
+      <span class="text-xs font-bold text-stone-300">四季典藏系列</span>
+      <span id="season-grand-status" class="text-xs text-amber-300 font-bold">集齊 4 季解鎖年度大碟</span>
+    </div>
+    <div class="grid grid-cols-5 gap-1.5 text-center">
+      <div id="disc-slot-0" class="py-1.5 px-1 rounded-xl bg-stone-950 border border-stone-800 flex flex-col items-center">
+        <span class="text-base">🌸</span>
+        <span class="text-[10px] font-bold text-stone-500 mt-0.5">春季</span>
+      </div>
+      <div id="disc-slot-1" class="py-1.5 px-1 rounded-xl bg-stone-950 border border-stone-800 flex flex-col items-center">
+        <span class="text-base">☀️</span>
+        <span class="text-[10px] font-bold text-stone-500 mt-0.5">夏季</span>
+      </div>
+      <div id="disc-slot-2" class="py-1.5 px-1 rounded-xl bg-stone-950 border border-stone-800 flex flex-col items-center">
+        <span class="text-base">🍁</span>
+        <span class="text-[10px] font-bold text-stone-500 mt-0.5">秋季</span>
+      </div>
+      <div id="disc-slot-3" class="py-1.5 px-1 rounded-xl bg-stone-950 border border-stone-800 flex flex-col items-center">
+        <span class="text-base">❄️</span>
+        <span class="text-[10px] font-bold text-stone-500 mt-0.5">冬季</span>
+      </div>
+      <div id="disc-slot-grand" class="py-1.5 px-1 rounded-xl bg-stone-950 border border-stone-800 flex flex-col items-center">
+        <span class="text-base opacity-40">👑</span>
+        <span class="text-[10px] font-bold text-stone-500 mt-0.5">大碟</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 當季 10 軌里程碑進度條 -->
+  <div class="w-full max-w-sm bg-stone-900/90 border border-stone-800 rounded-2xl p-4 my-1 shadow-md">
     <div class="flex justify-between items-baseline mb-2">
-      <span class="text-sm font-bold text-stone-300">目前進度：<strong id="visit-count" class="text-3xl text-amber-400 font-mono font-black ml-1">0</strong>/10 軌</span>
-      <span id="next-milestone-hint" class="text-xs text-amber-300 font-bold">再掃 3 軌解鎖 3軌小禮</span>
+      <span class="text-sm font-bold text-stone-300">本季進度：<strong id="visit-count" class="text-3xl text-amber-400 font-mono font-black ml-1">0</strong>/10 軌</span>
+      <span id="next-milestone-hint" class="text-xs text-amber-300 font-bold">再掃 3 軌解鎖時令小禮</span>
     </div>
 
     <!-- 進度槽 -->
@@ -119,35 +179,51 @@
     </div>
 
     <div class="flex justify-between text-xs text-stone-400 mt-2 font-bold">
-      <span id="step-3" class="transition-colors">🎁 3軌-街坊禮</span>
-      <span id="step-6" class="transition-colors">☕ 6軌-咖啡券</span>
-      <span id="step-10" class="transition-colors">📀 10軌-金黑膠</span>
-    </div>
-  </div>
-
-  <!-- 黑膠收藏木架 -->
-  <div class="w-full max-w-sm bg-stone-900/70 border border-stone-800 rounded-2xl px-4 py-3 flex items-center justify-between my-1">
-    <span class="text-sm font-bold text-stone-300">已集齊典藏黑膠：<strong id="saved-count" class="text-amber-400 font-mono text-base ml-1">0</strong> 隻</span>
-    <div id="vinyl-crate" class="flex gap-2 overflow-x-auto max-w-[160px] py-1 no-scrollbar items-center">
-      <span id="empty-crate-hint" class="text-xs text-stone-500 italic">暫無收藏</span>
+      <span id="step-3" class="transition-colors">🎁 3軌-時令禮</span>
+      <span id="step-6" class="transition-colors">☕ 6軌-飲品券</span>
+      <span id="step-10" class="transition-colors">📀 10軌-季金膠</span>
     </div>
   </div>
 
   <!-- 操作狀態提示 -->
-  <p id="status-msg" class="text-sm text-stone-300 text-center my-2 min-h-[20px] font-medium">請掃描現場活動專屬 QR Code 或條碼</p>
+  <p id="status-msg" class="text-sm text-stone-300 text-center my-2 min-h-[20px] font-medium">請對準現場攤位專屬 QR Code 進行掃描</p>
 
-  <!-- 底部核心操作區 -->
-  <div class="w-full max-w-sm flex flex-col gap-3 mt-1 mb-2">
+  <!-- 底部核心操作區 (無後門) -->
+  <div class="w-full max-w-sm flex flex-col gap-2 mt-1 mb-2">
     <button onclick="startScannerModal()" class="w-full min-h-[52px] bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 hover:brightness-110 active:scale-95 text-stone-950 text-lg font-black py-3 rounded-2xl shadow-xl transition flex items-center justify-center gap-2">
-      <span class="text-xl">📷</span> 開啟相機掃碼
+      <span class="text-xl">📷</span> 開啟相機掃碼 (支援代掃)
     </button>
-
-    <div class="flex gap-2.5">
-      <button onclick="simulateScan()" class="flex-1 min-h-[44px] py-2.5 bg-stone-800 hover:bg-stone-700 active:scale-95 text-stone-200 font-bold rounded-xl text-sm border border-stone-700 flex items-center justify-center">
-        ⚡ 模擬打卡測試
+    <div class="flex justify-end pr-1">
+      <button onclick="resetCurrentAccountData()" class="text-xs text-stone-500 hover:text-stone-400 font-medium py-1 px-2">
+        重設當前成員資料
       </button>
-      <button onclick="resetData()" class="px-5 min-h-[44px] py-2.5 bg-stone-900 hover:bg-stone-800 active:scale-95 text-stone-400 hover:text-stone-300 font-bold rounded-xl text-sm border border-stone-800 flex items-center justify-center">
-        重設
+    </div>
+  </div>
+
+  <!-- 彈窗 0：代掃指派確認 Modal (掃碼後觸發) -->
+  <div id="assign-modal" class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-stone-900 border-2 border-amber-400/80 rounded-3xl max-w-xs w-full p-6 text-center shadow-2xl animate-fade-in">
+      <div class="w-14 h-14 mx-auto bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center text-3xl mb-2">🎯</div>
+      <h3 class="text-lg font-black text-amber-300 mb-1">掃碼成功！</h3>
+      <p class="text-xs text-stone-300 mb-4">請問將今次打卡音軌存入邊個嘅黑膠卡？</p>
+
+      <div class="flex flex-col gap-2 mb-4">
+        <button onclick="confirmAssignScan(0)" class="w-full py-3 bg-stone-800 hover:bg-stone-700 border border-stone-600 rounded-xl text-sm font-bold text-stone-100 flex items-center justify-between px-4 active:scale-95">
+          <span class="flex items-center gap-2"><span>👤</span> 我自己</span>
+          <span id="assign-status-0" class="text-xs text-amber-400">0/10 軌</span>
+        </button>
+        <button onclick="confirmAssignScan(1)" class="w-full py-3 bg-stone-800 hover:bg-stone-700 border border-stone-600 rounded-xl text-sm font-bold text-stone-100 flex items-center justify-between px-4 active:scale-95">
+          <span class="flex items-center gap-2"><span>👴🏻</span> 阿爺</span>
+          <span id="assign-status-1" class="text-xs text-amber-400">0/10 軌</span>
+        </button>
+        <button onclick="confirmAssignScan(2)" class="w-full py-3 bg-stone-800 hover:bg-stone-700 border border-stone-600 rounded-xl text-sm font-bold text-stone-100 flex items-center justify-between px-4 active:scale-95">
+          <span class="flex items-center gap-2"><span>🧒🏻</span> 仔仔</span>
+          <span id="assign-status-2" class="text-xs text-amber-400">0/10 軌</span>
+        </button>
+      </div>
+
+      <button onclick="cancelAssignScan()" class="text-xs text-stone-400 hover:text-stone-300 font-medium py-2">
+        取消打卡
       </button>
     </div>
   </div>
@@ -159,16 +235,14 @@
       <button onclick="closeScannerModal()" class="w-11 h-11 flex items-center justify-center text-2xl font-bold bg-stone-800 rounded-full text-stone-200 active:scale-95">✕</button>
     </div>
 
-    <!-- 取景框 -->
     <div class="w-full max-w-xs aspect-square bg-stone-950 rounded-2xl overflow-hidden border-2 border-amber-400/70 relative flex items-center justify-center shadow-2xl">
       <div id="qr-reader" class="w-full h-full"></div>
       <div class="absolute inset-4 pointer-events-none border-2 border-dashed border-amber-400/50 rounded-xl"></div>
       <div class="absolute w-full h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent scan-line pointer-events-none"></div>
     </div>
 
-    <!-- 提示與求助按鈕 -->
     <div class="w-full max-w-sm text-center px-4">
-      <p id="scanner-tip" class="text-stone-300 text-sm mb-3">請將鏡頭保持約 15-20cm 距離，避免強光反光</p>
+      <p class="text-stone-300 text-sm mb-2">請將鏡頭保持約 15-20cm 距離</p>
       <button onclick="triggerStaffAssist()" class="min-h-[44px] text-sm text-amber-300 underline font-bold px-3 py-2">
         對唔到焦？點擊尋求現場大使協助
       </button>
@@ -179,18 +253,16 @@
     </button>
   </div>
 
-  <!-- 彈窗 2：B-Side 即時盲盒中獎 Modal -->
+  <!-- 彈窗 2：盲盒中獎 Modal -->
   <div id="reward-modal" class="fixed inset-0 bg-black/85 z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-stone-900 border-2 border-amber-400 rounded-3xl max-w-xs w-full p-6 text-center shadow-2xl">
-      <div class="w-14 h-14 mx-auto bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center text-3xl mb-3">
-        🎶
-      </div>
-      <h3 class="text-lg font-black text-amber-300 tracking-wide">B-Side 即時盲盒賞！</h3>
+    <div class="bg-stone-900 border-2 border-amber-400 rounded-3xl max-w-xs w-full p-6 text-center shadow-2xl animate-fade-in">
+      <div class="w-14 h-14 mx-auto bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center text-3xl mb-3">🎶</div>
+      <h3 class="text-lg font-black text-amber-300 tracking-wide">The B-Side 時令盲盒賞！</h3>
       <p id="reward-name" class="text-xl font-black text-white my-4 py-3 px-3 bg-stone-950 rounded-2xl border border-stone-800 text-amber-200">
-        $3 街坊買餸現金券
+        時令禮券
       </p>
       <p id="reward-desc" class="text-sm text-stone-300 mb-5 leading-relaxed">
-        獎券已自動存入「我的禮券包」，出示即可在現場攤位核銷使用。
+        獎券已自動存入該成員的「禮券包」，出示即可在現場攤位核銷使用。
       </p>
       <button onclick="closeRewardModal()" class="w-full min-h-[48px] py-3 bg-gradient-to-r from-amber-500 to-yellow-400 text-stone-950 font-black rounded-2xl text-base active:scale-95 shadow-lg">
         收下獎賞並繼續
@@ -198,31 +270,44 @@
     </div>
   </div>
 
-  <!-- 彈窗 3：我的禮券包 Modal -->
+  <!-- 彈窗 3：年度傳說大碟合成 Modal -->
+  <div id="grand-modal" class="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-gradient-to-b from-stone-900 to-stone-950 border-2 border-yellow-400 rounded-3xl max-w-xs w-full p-6 text-center shadow-2xl animate-fade-in">
+      <div class="text-5xl mb-2 animate-bounce">👑</div>
+      <h3 class="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 mb-1">
+        年度傳說大碟！
+      </h3>
+      <p class="text-xs text-amber-300 font-bold mb-4">🎉 四季黑膠全數集齊圓滿合成</p>
+      <p class="text-sm text-stone-200 mb-5 leading-relaxed">
+        恭喜完成春夏秋冬四重大滿貫！專屬「傳說大碟尊享禮」已存入禮券包，可到商場貴賓服務台兌換實體典藏禮盒。
+      </p>
+      <button onclick="closeGrandModal()" class="w-full min-h-[48px] py-3 bg-gradient-to-r from-amber-500 to-yellow-400 text-stone-950 font-black rounded-2xl text-base active:scale-95 shadow-lg">
+        榮耀領取大獎
+      </button>
+    </div>
+  </div>
+
+  <!-- 彈窗 4：我的禮券包 Modal -->
   <div id="voucher-modal" class="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-between p-5 hidden">
     <div class="w-full max-w-sm flex justify-between items-center text-amber-400 pt-2">
-      <h2 class="text-xl font-black flex items-center gap-2">🎟️ 我的禮券包</h2>
+      <h2 class="text-xl font-black flex items-center gap-2">🎟️ 禮券包 (<span id="voucher-owner-name">我自己</span>)</h2>
       <button onclick="closeVoucherModal()" class="w-11 h-11 flex items-center justify-center text-2xl font-bold bg-stone-800 rounded-full text-stone-200 active:scale-95">✕</button>
     </div>
 
-    <!-- 禮券清單 -->
-    <div id="voucher-list" class="w-full max-w-sm flex-1 overflow-y-auto my-4 flex flex-col gap-3 pr-1 no-scrollbar">
-      <!-- 動態插入禮券項目 -->
-    </div>
+    <div id="voucher-list" class="w-full max-w-sm flex-1 overflow-y-auto my-4 flex flex-col gap-3 pr-1 no-scrollbar"></div>
 
     <button onclick="closeVoucherModal()" class="w-full max-w-sm min-h-[48px] py-3 bg-stone-800 text-stone-200 font-bold rounded-2xl text-base active:scale-95">
       返回黑膠唱片
     </button>
   </div>
 
-  <!-- 彈窗 4：商戶現場核銷 Modal (自適應滑塊) -->
+  <!-- 彈窗 5：商戶現場核銷 Modal (滑塊防誤觸) -->
   <div id="redeem-modal" class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-stone-900 border border-stone-700 rounded-3xl max-w-xs w-full p-6 text-center shadow-2xl">
       <h3 class="text-lg font-black text-amber-400 mb-2">職員現場核銷</h3>
       <p id="redeem-modal-name" class="text-base font-bold text-white mb-4"></p>
       <p class="text-sm text-stone-300 mb-5 leading-relaxed">請將手機出示予職員，向右滑動確認核銷：</p>
 
-      <!-- 動態自適應寬度滑塊 -->
       <div id="slider-track-container" class="relative w-full bg-stone-950 border border-stone-800 rounded-full h-14 flex items-center px-1 overflow-hidden">
         <div id="slider-track-text" class="absolute inset-0 flex items-center justify-center text-sm font-bold text-stone-500 pointer-events-none">
           向右滑動確認 ➔
@@ -250,427 +335,716 @@
   </div>
 
   <script>
-    // 儲存鍵名與核心變數
-    const STORAGE_KEY = 'vinyl_master_progress_v4';
-    const MAX_VISITS = 10;
-    const QR_PREFIX = 'VINYL_BOOTH_'; // 專用活動 QR 驗證前綴
+    // ==================== 四季定義與常數 ====================
+    var APP_VERSION = "5.1-production-bside";
+    var STORAGE_PREFIX = "vinyl_bside_v51_";
+    var MAX_VISITS_PER_SEASON = 10;
+    var VOUCHER_EXPIRY_DAYS = 14;
 
-    let visits = 0;
-    let totalSavedDiscs = 0;
-    let scannedCodes = new Set();
-    let vouchers = []; 
-    let isProcessing = false;
-    let currentRedeemingId = null;
-    let html5QrCode = null;
-    let audioCtx = null;
-
-    // 盲盒獎品資料庫
-    const surprisePool = [
-      { title: "🥬 街市買餸 $3 現金券", desc: "指定菜檔/乾貨攤滿 $20 即減。" },
-      { title: "☕ 快閃手沖咖啡 8 折券", desc: "快閃咖啡攤位全單享 8 折優惠。" },
-      { title: "🧻 皇冠衛生紙 1 卷換領券", desc: "憑券到商場服務台免費領取。" },
-      { title: "🥤 長青養生草本飲 1 罐", desc: "健康滿分，服務台即時兌領。" },
-      { title: "✨ 攤位額外專屬印花 × 1", desc: "特殊加乘，加速黑膠唱片壓製！" }
+    var SEASONS = [
+      { id: 0, name: "🌸 春季 · 花韻鳴響", short: "春季", en: "SPRING", centerBg: "#065f46", centerBorder: "#34d399" },
+      { id: 1, name: "☀️ 夏季 · 陽光晴海", short: "夏季", en: "SUMMER", centerBg: "#b45309", centerBorder: "#fbbf24" },
+      { id: 2, name: "🍁 秋季 · 楓葉金桂", short: "秋季", en: "AUTUMN", centerBg: "#9a3412", centerBorder: "#f97316" },
+      { id: 3, name: "❄️ 冬季 · 雪嶺暖韻", short: "冬季", en: "WINTER", centerBg: "#1e3a8a", centerBorder: "#60a5fa" }
     ];
 
-    // Web Audio 音效引擎
-    function ensureAudioContext() {
+    // 四季時令獎品庫
+    var SEASON_PRIZES = {
+      0: [
+        { title: "🌸 養生花茶包 1 份", desc: "憑券到服務台領取養生玫瑰茉莉茶包一份。" },
+        { title: "🥬 街市買菜 $3 現金券", desc: "指定菜檔/乾貨攤滿 $20 即減。" },
+        { title: "🌱 春日小盆栽兌換券", desc: "綠意盎然，服務台即時兌換。" }
+      ],
+      1: [
+        { title: "🍧 盛夏消暑冬瓜茶 1 杯", desc: "指定飲品攤位免費兌換冰涼冬瓜茶。" },
+        { title: "☕ 文青冷萃咖啡 8 折券", desc: "快閃咖啡攤位全單享 8 折優惠。" },
+        { title: "🧻 皇冠衛生紙 1 卷換領券", desc: "憑券到商場服務台免費領取。" }
+      ],
+      2: [
+        { title: "🌰 暖心炒栗子 $5 折扣券", desc: "時令炒栗子攤位滿 $30 折減 $5。" },
+        { title: "🥮 懷舊傳統小食兌換券", desc: "指定攤位兌領傳統芝麻餅或光酥餅一份。" },
+        { title: "🍐 秋梨潤肺飲 1 罐", desc: "健康滿分，服務台即時兌領。" }
+      ],
+      3: [
+        { title: "🍲 冬日暖胃煲仔飯 $10 抵用券", desc: "合作食肆堂食煲仔飯即減 $10。" },
+        { title: "🍄 滋補乾貨海味買滿即減券", desc: "指定乾貨攤位滿 $100 減 $15。" },
+        { title: "🧣 長青暖心保暖手套 1 雙", desc: "憑券於服務台領取防寒手套一份。" }
+      ]
+    };
+
+    // 家庭 3 位成員預設配置
+    var MEMBER_TEMPLATES = [
+      { id: "self", tabName: "我嘅進度", title: "自己", shortCall: "樂迷朋友", vipId: 1001 },
+      { id: "grandpa", tabName: "阿爺進度", title: "阿爺 (陳伯)", shortCall: "陳伯", vipId: 1002 },
+      { id: "child", tabName: "仔仔進度", title: "仔仔 (陳小弟)", shortCall: "陳小弟", vipId: 1003 }
+    ];
+
+    var currentActiveAccount = 0; // 0: self, 1: grandpa, 2: child
+    var familyData = [];
+    var pendingScanCode = null;
+    var isScannerStopping = false;
+    var currentRedeemingId = null;
+    var html5QrCode = null;
+    var audioCtx = null;
+
+    // ==================== iOS 音效與 TTS 解鎖 ====================
+    function unlockAudioAndTTS() {
       if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
       }
-      if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
+      if (audioCtx && audioCtx.state === "suspended") {
+        audioCtx.resume().catch(function(){});
+      }
+      if ('speechSynthesis' in window && !window.__ttsUnlocked) {
+        var emptyUtterance = new SpeechSynthesisUtterance('');
+        window.speechSynthesis.speak(emptyUtterance);
+        window.__ttsUnlocked = true;
       }
     }
-    document.addEventListener('click', ensureAudioContext, { once: true });
-    document.addEventListener('touchstart', ensureAudioContext, { once: true });
+    document.addEventListener("click", unlockAudioAndTTS, { once: true });
+    document.addEventListener("touchstart", unlockAudioAndTTS, { once: true });
 
-    function playVinylBeep(freq = 523.25) {
+    function playTone(freq, dur, type) {
       try {
-        ensureAudioContext();
+        unlockAudioAndTTS();
         if (!audioCtx) return;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sine';
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        osc.type = type || "sine";
         osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + (dur || 0.25));
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         osc.start();
-        osc.stop(audioCtx.currentTime + 0.35);
-      } catch (e) {
-        console.warn("Audio Context error:", e);
-      }
+        osc.stop(audioCtx.currentTime + (dur || 0.25));
+      } catch (e) {}
     }
 
-    // 廣東話語音播報
-    function speakCantonese(text) {
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const utter = new SpeechSynthesisUtterance(text);
-        utter.lang = 'zh-HK';
-        utter.rate = 0.95; // 語速稍慢以方便長者聆聽
-        window.speechSynthesis.speak(utter);
-      }
+    function playSuccessSound() {
+      playTone(523, 0.12, "sine");
+      setTimeout(function(){ playTone(659, 0.12, "sine"); }, 100);
+      setTimeout(function(){ playTone(784, 0.2, "sine"); }, 200);
     }
 
-    // 本地存檔讀取與儲存
-    function loadProgress() {
-      try {
-        const saved = localStorage.getItem(STORAGE_KEY);
+    function playRedeemSound() {
+      playTone(880, 0.15, "triangle");
+      setTimeout(function(){ playTone(1100, 0.2, "triangle"); }, 100);
+    }
+
+    function speak(text, force) {
+      if (!("speechSynthesis" in window)) return;
+      if (!force && window.speechSynthesis.speaking) return;
+      window.speechSynthesis.cancel();
+      var cleanText = text.replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, "").trim();
+      var u = new SpeechSynthesisUtterance(cleanText);
+      u.lang = "zh-HK";
+      u.rate = 0.95;
+      window.speechSynthesis.speak(u);
+    }
+
+    // ==================== 離線與 CDN 狀態監測 ====================
+    function checkCDNAvailability() {
+      var ok = true;
+      if (typeof confetti === "undefined") {
+        console.error("[The B-Side] confetti CDN failed");
+        ok = false;
+      }
+      if (typeof Html5Qrcode === "undefined") {
+        console.error("[The B-Side] html5-qrcode CDN failed");
+        ok = false;
+      }
+      if (!ok) {
+        var fb = document.getElementById("cdn-fallback");
+        if (fb) fb.style.display = "block";
+      }
+      return ok;
+    }
+
+    function updateOnlineStatus() {
+      var bar = document.getElementById("offline-bar");
+      if (!navigator.onLine) {
+        if (bar) bar.classList.remove("hidden");
+      } else {
+        if (bar) bar.classList.add("hidden");
+      }
+    }
+    window.addEventListener("online", updateOnlineStatus);
+    window.addEventListener("offline", updateOnlineStatus);
+
+    // ==================== 本地資料隔離存取 ====================
+    function generateUniqueId() {
+      return Date.now().toString() + "_" + Math.random().toString(36).substring(2, 7);
+    }
+
+    function initFamilyAccounts() {
+      familyData = MEMBER_TEMPLATES.map(function(t) {
+        var key = STORAGE_PREFIX + t.id;
+        var saved = localStorage.getItem(key);
         if (saved) {
-          const data = JSON.parse(saved);
-          visits = data.visits || 0;
-          totalSavedDiscs = data.totalSavedDiscs || 0;
-          scannedCodes = new Set(data.scannedCodes || []);
-          vouchers = data.vouchers || [];
+          try {
+            return JSON.parse(saved);
+          } catch(e) {}
         }
+        return {
+          id: t.id,
+          title: t.title,
+          shortCall: t.shortCall,
+          vipId: t.vipId,
+          currentSeason: 0,
+          visits: 0,
+          seasonsCompleted: [false, false, false, false],
+          scannedCodes: [],
+          vouchers: [],
+          grandCompleted: false
+        };
+      });
+      cleanAllExpiredVouchers();
+    }
+
+    function saveAccountData(accIndex) {
+      var acc = familyData[accIndex];
+      if (!acc) return;
+      var key = STORAGE_PREFIX + acc.id;
+      try {
+        localStorage.setItem(key, JSON.stringify(acc));
       } catch (e) {
-        console.error("無法讀取存檔:", e);
+        if (e.name === "QuotaExceededError") {
+          acc.vouchers = acc.vouchers.slice(0, 10);
+          localStorage.setItem(key, JSON.stringify(acc));
+        }
+      }
+    }
+
+    function cleanAllExpiredVouchers() {
+      var now = Date.now();
+      var cutoff = VOUCHER_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
+      familyData.forEach(function(acc, idx) {
+        var before = acc.vouchers.length;
+        acc.vouchers = acc.vouchers.filter(function(v) {
+          return (now - v.createdAt) < cutoff;
+        });
+        if (acc.vouchers.length !== before) saveAccountData(idx);
+      });
+    }
+
+    // ==================== 切換帳號 Tab ====================
+    function switchAccount(index) {
+      currentActiveAccount = index;
+      for (var i = 0; i < 3; i++) {
+        var btn = document.getElementById("tab-btn-" + i);
+        if (btn) {
+          if (i === index) {
+            btn.className = "flex-1 py-2 px-1 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 bg-amber-500 text-stone-950 shadow-md";
+          } else {
+            btn.className = "flex-1 py-2 px-1 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1 text-stone-400 hover:text-stone-200";
+          }
+        }
       }
       renderUI();
+      var acc = familyData[index];
+      speak("已切換至 " + acc.title + " 的黑膠卡", false);
     }
 
-    function saveProgress() {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({
-          visits,
-          totalSavedDiscs,
-          scannedCodes: Array.from(scannedCodes),
-          vouchers
-        }));
-      } catch (e) {
-        console.error("無法儲存進度:", e);
-      }
-    }
-
-    // 介面渲染更新
+    // ==================== 畫面 UI 渲染 ====================
     function renderUI() {
-      document.getElementById('visit-count').innerText = visits;
-      document.getElementById('saved-count').innerText = totalSavedDiscs;
-      document.getElementById('vinyl-vol-label').innerText = `VOL.${totalSavedDiscs + 1}`;
-      document.getElementById('progress-bar-fill').style.width = `${(visits / MAX_VISITS) * 100}%`;
+      var acc = familyData[currentActiveAccount];
+      if (!acc) return;
 
-      // 階梯節點提示
-      const hint = document.getElementById('next-milestone-hint');
-      const step3 = document.getElementById('step-3');
-      const step6 = document.getElementById('step-6');
-      const step10 = document.getElementById('step-10');
+      var curSeasonConfig = SEASONS[acc.currentSeason] || SEASONS[0];
 
-      step3.className = visits >= 3 ? "text-amber-300 font-black" : "text-stone-500 font-bold";
-      step6.className = visits >= 6 ? "text-amber-300 font-black" : "text-stone-500 font-bold";
-      step10.className = visits >= 10 ? "text-amber-300 font-black" : "text-stone-500 font-bold";
+      var profileEl = document.getElementById("user-profile-display");
+      if (profileEl) profileEl.innerText = acc.title + " (VIP #" + acc.vipId + ")";
 
-      if (visits < 3) hint.innerText = `再掃 ${3 - visits} 軌解鎖 3軌小禮`;
-      else if (visits < 6) hint.innerText = `再掃 ${6 - visits} 軌解鎖 6軌咖啡券`;
-      else if (visits < 10) hint.innerText = `再掃 ${10 - visits} 軌壓製金黑膠`;
-      else hint.innerText = `已完成本張黑膠！`;
+      var sBadge = document.getElementById("season-badge");
+      if (sBadge) sBadge.innerText = curSeasonConfig.name;
 
-      // 段位頭銜更新
-      const tierBadge = document.getElementById('tier-badge');
-      if (totalSavedDiscs === 0) tierBadge.innerText = '青銅樂迷';
-      else if (totalSavedDiscs < 3) tierBadge.innerText = '白金發燒友 🥈';
-      else tierBadge.innerText = '金唱片宗師 👑';
+      var tBadge = document.getElementById("tier-badge");
+      var completedCount = acc.seasonsCompleted.filter(Boolean).length;
+      if (tBadge) {
+        if (acc.grandCompleted) tBadge.innerText = "年度傳說宗師 👑";
+        else if (completedCount >= 2) tBadge.innerText = "四季發燒友 🥈";
+        else tBadge.innerText = "青銅樂迷";
+      }
 
-      // 點亮音軌
-      for (let i = 1; i <= MAX_VISITS; i++) {
-        const track = document.getElementById(`track-${i}`);
-        if (track) {
-          if (i <= visits) track.classList.add('track-active');
-          else track.classList.remove('track-active');
+      var cBg = document.getElementById("vinyl-center-bg");
+      if (cBg) {
+        cBg.setAttribute("fill", curSeasonConfig.centerBg);
+        cBg.setAttribute("stroke", curSeasonConfig.centerBorder);
+      }
+      var cSeason = document.getElementById("vinyl-center-season");
+      if (cSeason) cSeason.textContent = curSeasonConfig.en;
+
+      var cVol = document.getElementById("vinyl-center-vol");
+      if (cVol) cVol.textContent = "VOL." + (acc.currentSeason + 1);
+
+      for (var i = 1; i <= MAX_VISITS_PER_SEASON; i++) {
+        var tr = document.getElementById("track-" + i);
+        if (tr) {
+          if (i <= acc.visits) tr.classList.add("track-active");
+          else tr.classList.remove("track-active");
         }
       }
 
-      // 黑膠收藏架
-      const crate = document.getElementById('vinyl-crate');
-      crate.innerHTML = '';
-      if (totalSavedDiscs === 0) {
-        crate.innerHTML = '<span id="empty-crate-hint" class="text-xs text-stone-500 italic">暫無收藏</span>';
-      } else {
-        for (let i = 1; i <= totalSavedDiscs; i++) {
-          const disc = document.createElement('div');
-          disc.className = "flex-shrink-0 w-7 h-7 rounded-full bg-gradient-to-tr from-amber-600 via-yellow-400 to-amber-700 border-2 border-yellow-200 shadow-md flex items-center justify-center text-stone-950 font-black text-xs";
-          disc.innerText = `${i}`;
-          crate.appendChild(disc);
+      var vCount = document.getElementById("visit-count");
+      if (vCount) vCount.innerText = acc.visits;
+
+      var pFill = document.getElementById("progress-bar-fill");
+      if (pFill) pFill.style.width = ((acc.visits / MAX_VISITS_PER_SEASON) * 100) + "%";
+
+      var hint = document.getElementById("next-milestone-hint");
+      if (hint) {
+        if (acc.visits < 3) hint.innerText = "再掃 " + (3 - acc.visits) + " 軌解鎖時令禮";
+        else if (acc.visits < 6) hint.innerText = "再掃 " + (6 - acc.visits) + " 軌解鎖時令飲品";
+        else if (acc.visits < 10) hint.innerText = "再掃 " + (10 - acc.visits) + " 軌壓製" + curSeasonConfig.short + "金膠";
+        else hint.innerText = "✨ 本季已圓滿！";
+      }
+
+      var s3 = document.getElementById("step-3");
+      var s6 = document.getElementById("step-6");
+      var s10 = document.getElementById("step-10");
+      if (s3) s3.className = acc.visits >= 3 ? "text-amber-300 font-black transition" : "text-stone-500 font-bold transition";
+      if (s6) s6.className = acc.visits >= 6 ? "text-amber-300 font-black transition" : "text-stone-500 font-bold transition";
+      if (s10) s10.className = acc.visits >= 10 ? "text-amber-300 font-black transition" : "text-stone-500 font-bold transition";
+
+      for (var s = 0; s < 4; s++) {
+        var slot = document.getElementById("disc-slot-" + s);
+        if (slot) {
+          if (acc.seasonsCompleted[s]) {
+            slot.className = "py-1.5 px-1 rounded-xl bg-amber-500/20 border-2 border-amber-400 flex flex-col items-center shadow-md scale-105";
+            slot.children[1].className = "text-[10px] font-black text-amber-300 mt-0.5";
+          } else if (s === acc.currentSeason) {
+            slot.className = "py-1.5 px-1 rounded-xl bg-stone-900 border border-amber-500/50 flex flex-col items-center animate-pulse";
+            slot.children[1].className = "text-[10px] font-bold text-amber-200 mt-0.5";
+          } else {
+            slot.className = "py-1.5 px-1 rounded-xl bg-stone-950 border border-stone-800 flex flex-col items-center opacity-40";
+            slot.children[1].className = "text-[10px] font-bold text-stone-500 mt-0.5";
+          }
         }
       }
 
-      // 未使用禮券角標
-      const unredeemedCount = vouchers.filter(v => !v.redeemed).length;
-      const badge = document.getElementById('voucher-badge-count');
-      if (unredeemedCount > 0) {
-        badge.innerText = unredeemedCount;
-        badge.classList.remove('hidden');
-      } else {
-        badge.classList.add('hidden');
+      var grandSlot = document.getElementById("disc-slot-grand");
+      if (grandSlot) {
+        if (acc.grandCompleted) {
+          grandSlot.className = "py-1.5 px-1 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-300 border-2 border-white flex flex-col items-center shadow-xl scale-110";
+          grandSlot.children[0].className = "text-base opacity-100";
+          grandSlot.children[1].className = "text-[10px] font-black text-stone-950 mt-0.5";
+        } else {
+          grandSlot.className = "py-1.5 px-1 rounded-xl bg-stone-950 border border-stone-800 flex flex-col items-center opacity-30";
+          grandSlot.children[0].className = "text-base opacity-40";
+          grandSlot.children[1].className = "text-[10px] font-bold text-stone-500 mt-0.5";
+        }
+      }
+
+      var grandStatus = document.getElementById("season-grand-status");
+      if (grandStatus) {
+        if (acc.grandCompleted) grandStatus.innerText = "🏆 已合成年度傳說大碟！";
+        else grandStatus.innerText = "已完成 " + completedCount + "/4 季黑膠";
+      }
+
+      var unredeemed = acc.vouchers.filter(function(v){ return !v.redeemed; }).length;
+      var badge = document.getElementById("voucher-badge-count");
+      if (badge) {
+        if (unredeemed > 0) {
+          badge.innerText = unredeemed;
+          badge.classList.remove("hidden");
+        } else {
+          badge.classList.add("hidden");
+        }
       }
     }
 
-    // 相機掃碼模組
+    // ==================== 相機掃描模組 (防競態) ====================
     function startScannerModal() {
-      ensureAudioContext();
-      document.getElementById('scanner-modal').classList.remove('hidden');
+      unlockAudioAndTTS();
+      if (typeof Html5Qrcode === "undefined") {
+        alert("掃描模組載入中，請檢查網絡連線後重試。");
+        return;
+      }
+      var modal = document.getElementById("scanner-modal");
+      if (modal) modal.classList.remove("hidden");
+
       if (!html5QrCode) {
-        html5QrCode = new Html5Qrcode("qr-reader");
+        try {
+          html5QrCode = new Html5Qrcode("qr-reader");
+        } catch (e) {
+          alert("掃描器初始化失敗，請重新整理頁面。");
+          closeScannerModal();
+          return;
+        }
       }
 
-      const config = { fps: 10, qrbox: { width: 220, height: 220 } };
       html5QrCode.start(
         { facingMode: "environment" },
-        config,
-        (decodedText) => {
+        { fps: 10, qrbox: { width: 220, height: 220 } },
+        function(decodedText) {
           closeScannerModal();
-          recordSuccessfulScan(decodedText);
+          handleScannedCodeReceived(decodedText);
         },
-        () => {}
-      ).catch(() => {
-        alert("未能啟動相機。若使用通訊軟件內建瀏覽器，請點擊右上角改用 Safari 或 Chrome 開啟。");
+        function() {}
+      ).catch(function(err) {
+        console.error("[The B-Side] Camera error:", err);
+        alert("無法開啟相機。請改用手機原生 Safari / Chrome 瀏覽器並允許相機權限。");
         closeScannerModal();
       });
     }
 
     function closeScannerModal() {
-      if (html5QrCode && html5QrCode.isScanning) {
-        html5QrCode.stop().then(() => {
-          document.getElementById('scanner-modal').classList.add('hidden');
-        }).catch(() => {
-          document.getElementById('scanner-modal').classList.add('hidden');
-        });
-      } else {
-        document.getElementById('scanner-modal').classList.add('hidden');
+      var modal = document.getElementById("scanner-modal");
+      if (html5QrCode && html5QrCode.isScanning && !isScannerStopping) {
+        isScannerStopping = true;
+        html5QrCode.stop()
+          .then(function() {
+            if (modal) modal.classList.add("hidden");
+          })
+          .catch(function(err) {
+            console.warn("[The B-Side] Stop error:", err);
+            if (modal) modal.classList.add("hidden");
+          })
+          .finally(function() {
+            isScannerStopping = false;
+          });
+      } else if (!isScannerStopping) {
+        if (modal) modal.classList.add("hidden");
       }
     }
 
+    // 真正現場工作人員指引
     function triggerStaffAssist() {
       closeScannerModal();
-      simulateScan();
+      speak("請尋找身穿黃色背心嘅現場工作人員協助！", true);
+      alert("🙋‍♂️ 現場工作人員指引：\n請尋找身穿「黃色背心」的大會工作人員，或移步至詢問台，職員會即時為您登記打卡！");
     }
 
-    // 掃碼成功邏輯
-    async function recordSuccessfulScan(decodedData) {
-      if (isProcessing) return;
-      isProcessing = true;
-
-      // 檢查是否為大會格式碼（若非大會專用碼且非測試碼，給予長者提示）
-      if (!decodedData.startsWith(QR_PREFIX) && !decodedData.startsWith("DEMO_")) {
-        // 為兼顧通用測試，非官方格式仍允許作為示範打卡，但給予提示
-        console.warn("掃描到非標準格式二維碼:", decodedData);
+    // ==================== 掃碼與代掃分配邏輯 ====================
+    function handleScannedCodeReceived(code) {
+      pendingScanCode = code;
+      for (var i = 0; i < 3; i++) {
+        var el = document.getElementById("assign-status-" + i);
+        if (el && familyData[i]) {
+          var seasonName = SEASONS[familyData[i].currentSeason].short;
+          el.innerText = seasonName + " " + familyData[i].visits + "/10 軌";
+        }
       }
+      var assignModal = document.getElementById("assign-modal");
+      if (assignModal) assignModal.classList.remove("hidden");
+    }
 
-      if (visits >= MAX_VISITS) {
-        speakCantonese("陳生，呢張唱片已經滿額，即將開啟下一張！");
-        isProcessing = false;
+    function cancelAssignScan() {
+      pendingScanCode = null;
+      var assignModal = document.getElementById("assign-modal");
+      if (assignModal) assignModal.classList.add("hidden");
+    }
+
+    function confirmAssignScan(targetAccIndex) {
+      var assignModal = document.getElementById("assign-modal");
+      if (assignModal) assignModal.classList.add("hidden");
+
+      if (!pendingScanCode) return;
+      var code = pendingScanCode;
+      pendingScanCode = null;
+
+      applyScanToAccount(targetAccIndex, code);
+    }
+
+    function applyScanToAccount(accIndex, code) {
+      var targetAcc = familyData[accIndex];
+      if (!targetAcc) return;
+
+      if (targetAcc.scannedCodes.indexOf(code) !== -1) {
+        var status = document.getElementById("status-msg");
+        if (status) status.innerText = "⚠️ " + targetAcc.title + " 已經在此攤位打過卡喇！";
+        speak(targetAcc.shortCall + "，呢個攤位已經打過卡喇！請前往其他攤位！", true);
         return;
       }
 
-      // 防重複掃碼
-      if (scannedCodes.has(decodedData)) {
-        document.getElementById('status-msg').innerText = `⚠️ 此攤位已打過卡，請前往其他攤位`;
-        speakCantonese("陳生，呢個攤位已經打過卡喇！");
-        setTimeout(() => { isProcessing = false; }, 600);
-        return;
-      }
+      targetAcc.scannedCodes.push(code);
+      targetAcc.visits++;
 
-      // 成功打卡
-      scannedCodes.add(decodedData);
-      visits++;
-      saveProgress();
-      renderUI();
+      currentActiveAccount = accIndex;
+      switchAccount(accIndex);
 
-      const vinyl = document.getElementById('vinyl');
-      vinyl.classList.add('spinning');
-      playVinylBeep(520 + (visits * 45));
+      var vinyl = document.getElementById("vinyl");
+      if (vinyl) vinyl.classList.add("spinning");
+      playSuccessSound();
 
-      if (visits === MAX_VISITS) {
-        setTimeout(() => {
-          confetti({ particleCount: 160, spread: 85, origin: { y: 0.6 } });
-          document.getElementById('badge-overlay').classList.remove('hidden');
-          document.getElementById('status-msg').innerText = `🎉 恭喜！已壓製成第 ${totalSavedDiscs + 1} 張典藏金黑膠！`;
-          speakCantonese("太犀利喇！恭喜陳生完成十次打卡，成功壓製一張典藏金黑膠！");
+      var curSeason = targetAcc.currentSeason;
+      var seasonCfg = SEASONS[curSeason];
 
-          vouchers.unshift({
-            id: Date.now(),
-            title: `📀 第 ${totalSavedDiscs + 1} 張金黑膠實體尊享禮`,
-            desc: "憑此券於服務台領取商場金唱片大禮包一份。",
+      if (targetAcc.visits >= MAX_VISITS_PER_SEASON) {
+        targetAcc.seasonsCompleted[curSeason] = true;
+        saveAccountData(accIndex);
+        renderUI();
+
+        setTimeout(function() {
+          if (typeof confetti !== "undefined") {
+            confetti({ particleCount: 160, spread: 85, origin: { y: 0.6 } });
+          }
+
+          var badgeOverlay = document.getElementById("badge-overlay");
+          var badgeText = document.getElementById("badge-overlay-text");
+          if (badgeText) badgeText.innerText = "🏆 " + seasonCfg.short + "金黑膠達成！";
+          if (badgeOverlay) badgeOverlay.classList.remove("hidden");
+
+          targetAcc.vouchers.unshift({
+            id: generateUniqueId(),
+            title: "📀 " + seasonCfg.short + "金黑膠尊享禮包",
+            desc: "憑此券到服務台兌換" + seasonCfg.short + "專屬大禮包一份。",
             redeemed: false,
-            date: new Date().toLocaleDateString()
+            createdAt: Date.now()
           });
 
-          saveCurrentDiscToCrate();
+          var allDone = targetAcc.seasonsCompleted.every(Boolean);
+          if (allDone && !targetAcc.grandCompleted) {
+            targetAcc.grandCompleted = true;
+            targetAcc.vouchers.unshift({
+              id: generateUniqueId(),
+              title: "👑 年度傳說大碟 · 實體黑膠典藏禮盒",
+              desc: "恭喜集齊四季黑膠！憑此券兌領年度最高榮譽黑膠大禮。",
+              redeemed: false,
+              createdAt: Date.now()
+            });
+            saveAccountData(accIndex);
+            renderUI();
+            setTimeout(openGrandModal, 1200);
+          } else {
+            if (targetAcc.currentSeason < 3) {
+              targetAcc.currentSeason++;
+              targetAcc.visits = 0;
+              targetAcc.scannedCodes = [];
+            }
+            saveAccountData(accIndex);
+            speak("恭喜" + targetAcc.shortCall + "成功壓製" + seasonCfg.short + "金黑膠！即將開啟下一季！", true);
+            setTimeout(function() {
+              if (badgeOverlay) badgeOverlay.classList.add("hidden");
+              if (vinyl) vinyl.classList.remove("spinning");
+              renderUI();
+            }, 3000);
+          }
         }, 400);
+
       } else {
-        setTimeout(() => {
-          triggerSurpriseReward();
+        saveAccountData(accIndex);
+        renderUI();
+        setTimeout(function() {
+          showSeasonReward(accIndex, curSeason);
         }, 400);
       }
     }
 
-    function triggerSurpriseReward() {
-      const prize = surprisePool[Math.floor(Math.random() * surprisePool.length)];
+    // ==================== 盲盒中獎 Modal ====================
+    function showSeasonReward(accIndex, seasonIdx) {
+      var pool = SEASON_PRIZES[seasonIdx] || SEASON_PRIZES[0];
+      var prize = pool[Math.floor(Math.random() * pool.length)];
+      var acc = familyData[accIndex];
 
-      vouchers.unshift({
-        id: Date.now(),
+      acc.vouchers.unshift({
+        id: generateUniqueId(),
         title: prize.title,
         desc: prize.desc,
         redeemed: false,
-        date: new Date().toLocaleDateString()
+        createdAt: Date.now()
       });
-      saveProgress();
+      saveAccountData(accIndex);
       renderUI();
 
-      document.getElementById('reward-name').innerText = prize.title;
-      document.getElementById('reward-desc').innerText = prize.desc;
-      document.getElementById('reward-modal').classList.remove('hidden');
-      document.getElementById('status-msg').innerText = `已點亮第 ${visits} 圈音軌，獲得即時獎勵！`;
-      speakCantonese(`掃描成功！恭喜陳生抽到 ${prize.title}！`);
+      var nameEl = document.getElementById("reward-name");
+      var descEl = document.getElementById("reward-desc");
+      if (nameEl) nameEl.innerText = prize.title;
+      if (descEl) descEl.innerText = prize.desc;
+
+      var modal = document.getElementById("reward-modal");
+      if (modal) modal.classList.remove("hidden");
+
+      speak("恭喜" + acc.shortCall + "抽到 " + prize.title + "！已存入禮券包！", false);
+
+      var status = document.getElementById("status-msg");
+      if (status) status.innerText = "已為 " + acc.title + " 點亮第 " + acc.visits + " 圈音軌！";
     }
 
     function closeRewardModal() {
-      document.getElementById('reward-modal').classList.add('hidden');
-      isProcessing = false;
+      var modal = document.getElementById("reward-modal");
+      if (modal) modal.classList.add("hidden");
+      var vinyl = document.getElementById("vinyl");
+      if (vinyl) vinyl.classList.remove("spinning");
     }
 
-    function saveCurrentDiscToCrate() {
-      totalSavedDiscs++;
-      visits = 0;
-      scannedCodes.clear();
-      saveProgress();
-
-      setTimeout(() => {
-        renderUI();
-        document.getElementById('status-msg').innerText = '已開啟全新黑膠唱片，請繼續掃碼！';
-        document.getElementById('badge-overlay').classList.add('hidden');
-        document.getElementById('vinyl').classList.remove('spinning');
-        isProcessing = false;
-      }, 2800);
+    function openGrandModal() {
+      if (typeof confetti !== "undefined") {
+        confetti({ particleCount: 220, spread: 100, origin: { y: 0.5 } });
+      }
+      var modal = document.getElementById("grand-modal");
+      if (modal) modal.classList.remove("hidden");
+      var acc = familyData[currentActiveAccount];
+      speak("太厲害喇！恭喜" + acc.shortCall + "集齊春夏秋冬，成功解鎖年度傳說大碟！", true);
     }
 
-    // 禮券包列表
+    function closeGrandModal() {
+      var modal = document.getElementById("grand-modal");
+      if (modal) modal.classList.add("hidden");
+      var badgeOverlay = document.getElementById("badge-overlay");
+      if (badgeOverlay) badgeOverlay.classList.add("hidden");
+      var vinyl = document.getElementById("vinyl");
+      if (vinyl) vinyl.classList.remove("spinning");
+    }
+
+    // ==================== 禮券包列表與核銷 ====================
     function openVoucherModal() {
-      const list = document.getElementById('voucher-list');
-      list.innerHTML = '';
+      cleanAllExpiredVouchers();
+      var acc = familyData[currentActiveAccount];
+      if (!acc) return;
 
-      if (vouchers.length === 0) {
-        list.innerHTML = `
-          <div class="py-12 text-center text-stone-500">
-            <span class="text-4xl block mb-3">📭</span>
-            <p class="text-sm font-bold">目前未有禮券，快啲去掃碼打卡啦！</p>
-          </div>
-        `;
+      var ownerName = document.getElementById("voucher-owner-name");
+      if (ownerName) ownerName.innerText = acc.title;
+
+      var list = document.getElementById("voucher-list");
+      if (!list) return;
+      list.innerHTML = "";
+
+      if (acc.vouchers.length === 0) {
+        list.innerHTML = '<div class="py-12 text-center text-stone-500"><span class="text-4xl block mb-3">📭</span><p class="text-sm font-bold">目前未有禮券，快啲去掃碼打卡啦！</p></div>';
       } else {
-        vouchers.forEach(v => {
-          const item = document.createElement('div');
-          item.className = `p-4 rounded-2xl border text-left flex items-center justify-between ${
-            v.redeemed ? 'bg-stone-950/60 border-stone-800 opacity-60' : 'bg-stone-900 border-amber-500/50 shadow-md'
-          }`;
-          item.innerHTML = `
-            <div class="flex-1 pr-3">
-              <h4 class="text-base font-black ${v.redeemed ? 'text-stone-400 line-through' : 'text-amber-300'}">${v.title}</h4>
-              <p class="text-xs text-stone-300 mt-1">${v.desc}</p>
-              <span class="text-xs text-stone-500 block mt-1.5">${v.date} ${v.redeemed ? '· (已完成現場核銷)' : ''}</span>
-            </div>
-            <div>
-              ${v.redeemed 
-                ? '<span class="text-xs font-bold text-stone-500 px-3 py-1.5 bg-stone-950 rounded-xl">已核銷</span>' 
-                : `<button onclick="openRedeemModal(${v.id})" class="min-h-[44px] px-4 py-2 bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-sm rounded-xl active:scale-95 shadow-md">出示核銷</button>`
-              }
-            </div>
-          `;
+        acc.vouchers.forEach(function(v) {
+          var item = document.createElement("div");
+          var expired = (Date.now() - v.createdAt) > (VOUCHER_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+          var daysLeft = Math.max(0, Math.ceil((VOUCHER_EXPIRY_DAYS * 24 * 60 * 60 * 1000 - (Date.now() - v.createdAt)) / (24 * 60 * 60 * 1000)));
+
+          item.className = "p-4 rounded-2xl border text-left flex items-center justify-between " + 
+            (v.redeemed ? "bg-stone-950/60 border-stone-800 opacity-60" : 
+             expired ? "bg-stone-950/60 border-stone-800 opacity-40" : 
+             "bg-stone-900 border-amber-500/50 shadow-md");
+
+          var statusHtml = "";
+          if (v.redeemed) {
+            statusHtml = '<span class="text-xs font-bold text-stone-500 px-3 py-1.5 bg-stone-950 rounded-xl">已核銷</span>';
+          } else if (expired) {
+            statusHtml = '<span class="text-xs font-bold text-stone-500 px-3 py-1.5 bg-stone-950 rounded-xl">已過期</span>';
+          } else {
+            statusHtml = '<button onclick="openRedeemModal(\'' + v.id + '\')" class="min-h-[44px] px-4 py-2 bg-amber-500 hover:bg-amber-400 text-stone-950 font-black text-sm rounded-xl active:scale-95 shadow-md">出示核銷</button>';
+          }
+
+          item.innerHTML = 
+            '<div class="flex-1 pr-3">' +
+              '<h4 class="text-base font-black ' + (v.redeemed || expired ? "text-stone-400 line-through" : "text-amber-300") + '">' + v.title + '</h4>' +
+              '<p class="text-xs text-stone-300 mt-1">' + v.desc + '</p>' +
+              '<span class="text-xs text-stone-500 block mt-1.5">' + 
+                (v.redeemed ? "已於現場核銷" : expired ? "已過期" : "剩餘 " + daysLeft + " 天有效") + 
+              '</span>' +
+            '</div>' +
+            '<div>' + statusHtml + '</div>';
           list.appendChild(item);
         });
       }
-
-      document.getElementById('voucher-modal').classList.remove('hidden');
+      var modal = document.getElementById("voucher-modal");
+      if (modal) modal.classList.remove("hidden");
     }
 
     function closeVoucherModal() {
-      document.getElementById('voucher-modal').classList.add('hidden');
+      var m = document.getElementById("voucher-modal");
+      if (m) m.classList.add("hidden");
     }
 
-    // 核銷滑塊視窗
+    // ==================== 滑塊防誤觸核銷 ====================
     function openRedeemModal(id) {
       currentRedeemingId = id;
-      const voucher = vouchers.find(v => v.id === id);
+      var acc = familyData[currentActiveAccount];
+      var voucher = acc.vouchers.find(function(v){ return v.id === id; });
       if (!voucher) return;
 
-      document.getElementById('redeem-modal-name').innerText = voucher.title;
-      const slider = document.getElementById('redeem-slider');
-      slider.value = 0;
-      updateSliderVisual(0);
+      var nameEl = document.getElementById("redeem-modal-name");
+      if (nameEl) nameEl.innerText = voucher.title;
+      var slider = document.getElementById("redeem-slider");
+      if (slider) slider.value = 0;
 
-      document.getElementById('redeem-modal').classList.remove('hidden');
+      var modal = document.getElementById("redeem-modal");
+      if (modal) modal.classList.remove("hidden");
+
+      requestAnimationFrame(function() {
+        updateSliderVisual(0);
+      });
     }
 
     function closeRedeemModal() {
-      document.getElementById('redeem-modal').classList.add('hidden');
+      var m = document.getElementById("redeem-modal");
+      if (m) m.classList.add("hidden");
       currentRedeemingId = null;
     }
 
-    // 動態計算滑塊位移（解決固定 260px 造成的螢幕跑版問題）
     function updateSliderVisual(val) {
-      const slider = document.getElementById('redeem-slider');
-      const thumb = document.getElementById('slider-thumb-bg');
-      const container = document.getElementById('slider-track-container');
-      
-      const maxOffset = container.clientWidth - thumb.clientWidth - 8;
-      const offset = (val / 100) * maxOffset;
-      thumb.style.transform = `translateX(${Math.max(0, offset)}px)`;
+      var thumb = document.getElementById("slider-thumb-bg");
+      var container = document.getElementById("slider-track-container");
+      if (!thumb || !container) return;
+
+      var containerWidth = container.offsetWidth;
+      var thumbWidth = thumb.offsetWidth || 48;
+      var maxOffset = containerWidth - thumbWidth - 8;
+      var offset = (val / 100) * maxOffset;
+      thumb.style.transform = "translateX(" + Math.max(0, offset) + "px)";
     }
 
     function handleSliderChange(val) {
       updateSliderVisual(val);
       if (val >= 92) {
-        const voucher = vouchers.find(v => v.id === currentRedeemingId);
-        if (voucher) {
+        var acc = familyData[currentActiveAccount];
+        var voucher = acc.vouchers.find(function(v){ return v.id === currentRedeemingId; });
+        if (voucher && !voucher.redeemed) {
           voucher.redeemed = true;
-          saveProgress();
+          saveAccountData(currentActiveAccount);
           renderUI();
-          playVinylBeep(880);
-          speakCantonese("獎券核銷成功，多謝支持！");
+          playRedeemSound();
+          speak("獎券核銷成功，多謝支持！", true);
           closeRedeemModal();
-          openVoucherModal();
+          setTimeout(openVoucherModal, 300);
         }
       }
     }
 
-    // 放手自動回彈未滑到底的滑塊
     function handleSliderRelease() {
-      const slider = document.getElementById('redeem-slider');
-      if (slider.value < 92) {
+      var slider = document.getElementById('redeem-slider');
+      if (slider && slider.value < 92) {
         slider.value = 0;
         updateSliderVisual(0);
       }
     }
 
-    // 模擬測試生成唯一碼
-    function simulateScan() {
-      const demoCode = `${QR_PREFIX}DEMO_${visits + 1}_${Date.now()}`;
-      recordSuccessfulScan(demoCode);
-    }
+    // ==================== 重設當前成員資料 ====================
+    function resetCurrentAccountData() {
+      var acc = familyData[currentActiveAccount];
+      if (!confirm("確定要重設「" + acc.title + "」的所有黑膠進度與禮券嗎？此操作無法復原。")) return;
 
-    function resetData() {
-      if (!confirm("確定要重設所有黑膠進度、收藏紀錄與禮券包嗎？")) return;
-      visits = 0;
-      totalSavedDiscs = 0;
-      scannedCodes.clear();
-      vouchers = [];
-      saveProgress();
+      acc.currentSeason = 0;
+      acc.visits = 0;
+      acc.seasonsCompleted = [false, false, false, false];
+      acc.scannedCodes = [];
+      acc.vouchers = [];
+      acc.grandCompleted = false;
+
+      saveAccountData(currentActiveAccount);
       renderUI();
-      document.getElementById('status-msg').innerText = '請掃描現場活動專屬 QR Code 或條碼';
-      document.getElementById('badge-overlay').classList.add('hidden');
-      document.getElementById('vinyl').classList.remove('spinning');
-      isProcessing = false;
+      speak("已重設 " + acc.title + " 的進度", false);
     }
 
-    // 視窗尺寸改變時重算滑塊
-    window.addEventListener('resize', () => {
-      const slider = document.getElementById('redeem-slider');
+    // ==================== 初始化 ====================
+    window.addEventListener("resize", function() {
+      var slider = document.getElementById("redeem-slider");
       if (slider) updateSliderVisual(slider.value);
     });
 
-    // 初始化載入
-    window.addEventListener('DOMContentLoaded', loadProgress);
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('./sw.js')
+          .then(function(reg) { console.log('[The B-Side] Service Worker 就緒:', reg.scope); })
+          .catch(function(err) { console.warn('[The B-Side] Service Worker 註冊失敗:', err); });
+      });
+    }
+
+    window.addEventListener("DOMContentLoaded", function() {
+      checkCDNAvailability();
+      updateOnlineStatus();
+      initFamilyAccounts();
+      renderUI();
+      console.log("[The B-Side] Version 5.1 fully loaded.");
+    });
   </script>
 </body>
 </html>
