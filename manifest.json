@@ -1,11 +1,11 @@
 {
-  "name": "長青達人 · 全民黑膠聲動卡",
-  "short_name": "黑膠聲動卡",
-  "description": "長者專屬現場黑膠掃碼集點與優惠換領系統",
+"name": "The B-Side 黑膠B面",
+  "short_name": "The B-Side",
   "start_url": "./index.html",
-  "scope": "./",
   "display": "standalone",
-  "orientation": "portrait",
+  "background_color": "#0c0a09",
+  "theme_color": "#0c0a09",
+  "orientation": "portrait"
   "background_color": "#0c0a09",
   "theme_color": "#0c0a09",
   "lang": "zh-HK",
