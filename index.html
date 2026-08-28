@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="version" content="5.2-production-firebase" />
+  <meta name="version" content="5.5-phone-auth" />
   <title>The B-Side 黑膠B面</title>
 
   <!-- PWA & 行動裝置 Web App 支援 -->
@@ -28,9 +28,10 @@
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
-  <!-- Firebase 9.x Compat SDK -->
+  <!-- Firebase 9.x Compat SDK (App, Firestore, Auth) -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
   <style>
     @keyframes spin { 100% { transform: rotate(360deg); } }
@@ -55,6 +56,15 @@
 </head>
 <body class="bg-[#0c0a09] text-stone-100 min-h-screen flex flex-col items-center justify-between p-4 sm:p-6 select-none font-sans overflow-x-hidden">
 
+  <!-- reCAPTCHA 容器 (Invisible) -->
+  <div id="recaptcha-container"></div>
+
+  <!-- 社交通訊軟體內建瀏覽器 (In-App Browser) 警告欄 -->
+  <div id="inapp-warning-bar" class="fixed top-0 left-0 right-0 bg-rose-600 text-white text-xs font-bold text-center py-2 px-3 z-50 shadow-md hidden flex items-center justify-between">
+    <span>⚠️ 如相機無法開啟，請點擊右上角「...」選擇改用 Safari / Chrome 開啟</span>
+    <button onclick="document.getElementById('inapp-warning-bar').classList.add('hidden')" class="ml-2 font-black px-1.5 py-0.5 bg-black/20 rounded">✕</button>
+  </div>
+
   <!-- CDN 載入失敗提示 -->
   <div id="cdn-fallback" class="cdn-fail">
     <h1>⚠️ 網絡連線不穩定</h1>
@@ -69,7 +79,7 @@
   <!-- 頂部身分與禮券包入口 -->
   <header class="w-full max-w-sm flex items-center justify-between mt-1 px-1">
     <div class="flex flex-col text-left">
-      <div class="flex items-center gap-2 mb-1">
+      <div class="flex items-center gap-2 mb-1 flex-wrap">
         <span id="season-badge" class="px-2.5 py-0.5 bg-amber-500/20 border border-amber-500/50 rounded-full text-xs font-black tracking-wider text-amber-300">
           🌸 春季 · 花韻鳴響
         </span>
@@ -81,11 +91,15 @@
         The B-Side · 黑膠B面
       </h1>
       <p id="user-profile-display" class="text-sm text-stone-300 font-medium mt-0.5">
-        載入中...
+        帳號同步中...
       </p>
+      <!-- 電話綁定/登入觸發按鈕 -->
+      <button id="auth-status-btn" onclick="openPhoneAuthModal()" class="mt-1 px-2.5 py-1 bg-stone-900 hover:bg-stone-800 border border-amber-500/40 rounded-lg text-xs font-bold text-amber-300 active:scale-95 transition flex items-center gap-1 w-fit">
+        <span>📱</span> <span id="auth-status-text">綁定電話防遺失</span>
+      </button>
     </div>
 
-    <!-- 禮券包入口按鈕 -->
+    <!-- 禮券包按鈕 -->
     <button onclick="openVoucherModal()" class="relative min-w-[56px] min-h-[56px] bg-stone-800 hover:bg-stone-700 border-2 border-amber-500/50 p-2 rounded-2xl flex flex-col items-center justify-center active:scale-95 transition shadow-lg" aria-label="打開禮券包">
       <span class="text-2xl leading-none">🎟️</span>
       <span class="text-xs font-bold text-amber-300 mt-1">禮券包</span>
@@ -367,6 +381,41 @@
     </div>
   </div>
 
+  <!-- 彈窗 7：電話註冊/登入/綁定 Modal -->
+  <div id="phone-auth-modal" class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-stone-900 border-2 border-amber-400 rounded-3xl max-w-xs w-full p-6 text-center shadow-2xl animate-fade-in">
+      <div class="w-14 h-14 mx-auto bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center text-3xl mb-3">📱</div>
+      <h3 class="text-lg font-black text-amber-300 mb-1">電話號碼登入 / 綁定</h3>
+      <p class="text-xs text-stone-400 mb-4">綁定電話即可永久保存黑膠音軌與禮券</p>
+
+      <!-- 步驟 1：輸入電話號碼 -->
+      <div id="phone-step-1" class="flex flex-col gap-3">
+        <div class="flex items-center bg-stone-950 border border-stone-700 rounded-xl px-3 py-2">
+          <span class="text-stone-400 text-sm font-bold mr-2">+852</span>
+          <input id="input-phone" type="tel" maxlength="8" placeholder="8位香港號碼" class="bg-transparent text-white text-base font-mono w-full focus:outline-none" />
+        </div>
+        <button id="send-otp-btn" onclick="sendSmsCode()" class="w-full py-3 bg-amber-500 hover:bg-amber-400 text-stone-950 font-black rounded-xl text-sm active:scale-95 transition">
+          獲取 SMS 驗證碼
+        </button>
+      </div>
+
+      <!-- 步驟 2：輸入 SMS 驗證碼 -->
+      <div id="phone-step-2" class="flex flex-col gap-3 hidden">
+        <input id="input-otp" type="number" placeholder="輸入 6 位驗證碼" class="bg-stone-950 border border-stone-700 rounded-xl px-3 py-3 text-center text-white text-xl font-mono tracking-widest focus:outline-none" />
+        <button id="verify-otp-btn" onclick="verifySmsCode()" class="w-full py-3 bg-gradient-to-r from-amber-500 to-yellow-400 text-stone-950 font-black rounded-xl text-sm active:scale-95 transition">
+          確認登入並同步進度
+        </button>
+        <button onclick="backToPhoneInput()" class="text-xs text-stone-400 hover:text-stone-300 py-1">
+          重新輸入電話
+        </button>
+      </div>
+
+      <button onclick="closePhoneAuthModal()" class="mt-4 text-xs text-stone-500 hover:text-stone-400 py-1 block w-full">
+        稍後再綁定 (以訪客身分繼續)
+      </button>
+    </div>
+  </div>
+
   <script>
     // ==================== Firebase 專案配置與初始化 ====================
     var firebaseConfig = {
@@ -380,16 +429,21 @@
     };
 
     var db = null;
+    var auth = null;
+    var currentUid = null;
+    var userPhoneNumber = null;
+
     try {
       firebase.initializeApp(firebaseConfig);
       db = firebase.firestore();
+      auth = firebase.auth();
     } catch (e) {
       console.warn("[Firebase] 初始化失敗或處於離線模式:", e);
     }
 
     // ==================== 四季定義與常數 ====================
-    var APP_VERSION = "5.2-production-firebase";
-    var STORAGE_PREFIX = "vinyl_bside_v52_";
+    var APP_VERSION = "5.5-phone-auth";
+    var STORAGE_PREFIX = "vinyl_bside_v54_";
     var MAX_VISITS_PER_SEASON = 10;
     var VOUCHER_EXPIRY_DAYS = 14;
 
@@ -424,9 +478,9 @@
     };
 
     var MEMBER_TEMPLATES = [
-      { id: "self", tabName: "我嘅進度", title: "自己", shortCall: "樂迷朋友", vipId: 1001 },
-      { id: "grandpa", tabName: "阿爺進度", title: "阿爺 (陳伯)", shortCall: "陳伯", vipId: 1002 },
-      { id: "child", tabName: "仔仔進度", title: "仔仔 (陳小弟)", shortCall: "陳小弟", vipId: 1003 }
+      { id: "self", tabName: "我嘅進度", title: "自己", shortCall: "樂迷朋友" },
+      { id: "grandpa", tabName: "阿爺進度", title: "阿爺 (陳伯)", shortCall: "陳伯" },
+      { id: "child", tabName: "仔仔進度", title: "仔仔 (陳小弟)", shortCall: "陳小弟" }
     ];
 
     var currentActiveAccount = 0;
@@ -437,6 +491,33 @@
     var currentRedeemingId = null;
     var html5QrCode = null;
     var audioCtx = null;
+    var confirmationResult = null;
+    var recaptchaVerifier = null;
+
+    // ==================== 獨立專屬 VIP ID 生成 ====================
+    function getOrCreateVipId(memberKey) {
+      var storageKey = "bside_unique_vip_" + memberKey;
+      var id = localStorage.getItem(storageKey);
+      if (!id) {
+        id = Math.floor(100000 + Math.random() * 900000).toString();
+        localStorage.setItem(storageKey, id);
+      }
+      return parseInt(id, 10);
+    }
+
+    // ==================== In-App Browser 檢測 ====================
+    function checkInAppBrowser() {
+      var ua = navigator.userAgent || navigator.vendor || window.opera || "";
+      var isInApp = (ua.indexOf("MicroMessenger") > -1) || 
+                    (ua.indexOf("FBAN") > -1) || 
+                    (ua.indexOf("FBAV") > -1) || 
+                    (ua.indexOf("Line") > -1) || 
+                    (ua.indexOf("WhatsApp") > -1);
+      if (isInApp) {
+        var bar = document.getElementById("inapp-warning-bar");
+        if (bar) bar.classList.remove("hidden");
+      }
+    }
 
     // ==================== iOS 音效與 TTS 解鎖 ====================
     function unlockAudioAndTTS() {
@@ -545,14 +626,16 @@
         var saved = localStorage.getItem(key);
         if (saved) {
           try {
-            return JSON.parse(saved);
+            var parsed = JSON.parse(saved);
+            if (!parsed.vipId) parsed.vipId = getOrCreateVipId(t.id);
+            return parsed;
           } catch(e) {}
         }
         return {
           id: t.id,
           title: t.title,
           shortCall: t.shortCall,
-          vipId: t.vipId,
+          vipId: getOrCreateVipId(t.id),
           currentSeason: 0,
           visits: 0,
           seasonsCompleted: [false, false, false, false],
@@ -576,6 +659,7 @@
           localStorage.setItem(key, JSON.stringify(acc));
         }
       }
+      syncProgressToCloud();
     }
 
     function cleanAllExpiredVouchers() {
@@ -590,7 +674,197 @@
       });
     }
 
-    // ==================== Firebase 雲端驗證與排行榜同步 ====================
+    // ==================== Firebase 認證與雲端備份 ====================
+    function initAnonymousAuth() {
+      if (!auth) return;
+
+      auth.onAuthStateChanged(async function(user) {
+        if (user) {
+          currentUid = user.uid;
+          userPhoneNumber = user.phoneNumber || null;
+          console.log("[Auth] 用戶已就緒, UID:", currentUid, "電話:", userPhoneNumber);
+
+          updateAuthStatusUI();
+
+          var shortVip = parseInt(user.uid.replace(/\D/g, '').substring(0, 5), 10);
+          if (!shortVip || isNaN(shortVip)) {
+            shortVip = getOrCreateVipId("self");
+          }
+          if (familyData[0]) {
+            familyData[0].vipId = shortVip;
+            saveAccountData(0);
+            renderUI();
+          }
+
+          await loadProgressFromCloud(currentUid);
+        } else {
+          auth.signInAnonymously().catch(function(err) {
+            console.warn("[Auth] 匿名登入異常，維持本地模式:", err);
+          });
+        }
+      });
+    }
+
+    function updateAuthStatusUI() {
+      var authBtn = document.getElementById("auth-status-btn");
+      var authText = document.getElementById("auth-status-text");
+      if (!authBtn || !authText) return;
+
+      if (userPhoneNumber) {
+        var masked = userPhoneNumber.replace("+852", "");
+        masked = masked.substring(0, 2) + "****" + masked.substring(6);
+        authText.innerText = "已綁定 (" + masked + ")";
+        authBtn.className = "mt-1 px-2.5 py-1 bg-emerald-950/60 border border-emerald-500/50 rounded-lg text-xs font-bold text-emerald-300 active:scale-95 transition flex items-center gap-1 w-fit";
+      } else {
+        authText.innerText = "綁定電話防遺失";
+        authBtn.className = "mt-1 px-2.5 py-1 bg-stone-900 hover:bg-stone-800 border border-amber-500/40 rounded-lg text-xs font-bold text-amber-300 active:scale-95 transition flex items-center gap-1 w-fit";
+      }
+    }
+
+    async function syncProgressToCloud() {
+      if (!db || !currentUid || !navigator.onLine) return;
+      try {
+        await db.collection("users").doc(currentUid).set({
+          familyData: familyData,
+          phoneNumber: userPhoneNumber,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+      } catch (err) {
+        console.warn("[Cloud] 雲端備份失敗:", err);
+      }
+    }
+
+    async function loadProgressFromCloud(uid) {
+      if (!db || !uid || !navigator.onLine) return;
+      try {
+        var doc = await db.collection("users").doc(uid).get();
+        if (doc.exists && doc.data().familyData) {
+          var cloudData = doc.data().familyData;
+          if (Array.isArray(cloudData) && cloudData.length === 3) {
+            familyData = cloudData;
+            renderUI();
+            console.log("[Cloud] 成功從雲端戶口恢復最新進度");
+          }
+        }
+      } catch (err) {
+        console.warn("[Cloud] 雲端存檔讀取失敗:", err);
+      }
+    }
+
+    // ==================== 電話認證邏輯 (SMS OTP) ====================
+    function initRecaptcha() {
+      if (!recaptchaVerifier && window.firebase && auth) {
+        try {
+          recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+            'size': 'invisible',
+            'callback': function() {},
+            'expired-callback': function() {
+              if (recaptchaVerifier) recaptchaVerifier.render();
+            }
+          });
+        } catch (e) {
+          console.warn("[reCAPTCHA] 初始化警告:", e);
+        }
+      }
+    }
+
+    function openPhoneAuthModal() {
+      initRecaptcha();
+      document.getElementById("phone-step-1").classList.remove("hidden");
+      document.getElementById("phone-step-2").classList.add("hidden");
+      document.getElementById("phone-auth-modal").classList.remove("hidden");
+    }
+
+    function closePhoneAuthModal() {
+      document.getElementById("phone-auth-modal").classList.add("hidden");
+    }
+
+    function backToPhoneInput() {
+      document.getElementById("phone-step-1").classList.remove("hidden");
+      document.getElementById("phone-step-2").classList.add("hidden");
+    }
+
+    function sendSmsCode() {
+      var rawPhone = document.getElementById("input-phone").value.trim();
+      if (!/^[5689]\d{7}$/.test(rawPhone)) {
+        alert("請輸入有效的 8 位香港手機號碼 (5/6/8/9 開頭)");
+        return;
+      }
+
+      var fullPhone = "+852" + rawPhone;
+      var btn = document.getElementById("send-otp-btn");
+      btn.disabled = true;
+      btn.innerText = "發送中...";
+
+      initRecaptcha();
+
+      var user = auth.currentUser;
+      var authAction = (user && user.isAnonymous)
+        ? user.linkWithPhoneNumber(fullPhone, recaptchaVerifier)
+        : auth.signInWithPhoneNumber(fullPhone, recaptchaVerifier);
+
+      authAction.then(function(result) {
+        confirmationResult = result;
+        document.getElementById("phone-step-1").classList.add("hidden");
+        document.getElementById("phone-step-2").classList.remove("hidden");
+        btn.disabled = false;
+        btn.innerText = "獲取 SMS 驗證碼";
+        speak("驗證碼已發送至閣下手機，請輸入 6 位數字", false);
+      }).catch(function(error) {
+        console.error("[Phone Auth] 發送失敗:", error);
+        btn.disabled = false;
+        btn.innerText = "獲取 SMS 驗證碼";
+
+        if (error.code === "auth/credential-already-in-use" || error.code === "auth/account-exists-with-different-credential") {
+          // 該號碼已存在，切換為直接以該號碼登入
+          auth.signInWithPhoneNumber(fullPhone, recaptchaVerifier).then(function(res) {
+            confirmationResult = res;
+            document.getElementById("phone-step-1").classList.add("hidden");
+            document.getElementById("phone-step-2").classList.remove("hidden");
+            speak("偵測到已有帳號，請輸入驗證碼以取回記錄", false);
+          }).catch(function(err2) {
+            alert("登入發送失敗: " + err2.message);
+          });
+        } else {
+          alert("SMS 發送失敗: " + error.message);
+        }
+      });
+    }
+
+    function verifySmsCode() {
+      var code = document.getElementById("input-otp").value.trim();
+      if (code.length !== 6) {
+        alert("請輸入完整的 6 位驗證碼");
+        return;
+      }
+
+      var btn = document.getElementById("verify-otp-btn");
+      btn.disabled = true;
+      btn.innerText = "驗證中...";
+
+      confirmationResult.confirm(code).then(async function(result) {
+        var user = result.user;
+        currentUid = user.uid;
+        userPhoneNumber = user.phoneNumber;
+
+        // 優先從雲端讀取記錄，若無則上傳本地記錄
+        await loadProgressFromCloud(currentUid);
+        await syncProgressToCloud();
+
+        closePhoneAuthModal();
+        playSuccessSound();
+        speak("電話驗證成功，黑膠進度已與雲端同步！", true);
+        updateAuthStatusUI();
+        renderUI();
+      }).catch(function(error) {
+        console.error("[Phone Auth] 驗證失敗:", error);
+        btn.disabled = false;
+        btn.innerText = "確認登入並同步進度";
+        alert("驗證碼不正確或已過期，請重新輸入。");
+      });
+    }
+
+    // ==================== Firebase 攤位驗證與排行榜 ====================
     async function verifyBoothFromBackend(code) {
       if (!db || !navigator.onLine) {
         return { valid: true, name: "現場專屬攤位(離線認證)", season: 0 };
@@ -629,7 +903,7 @@
         vipId: account.vipId,
         totalDiscs: completedCount,
         currentTracks: account.visits,
-        score: score,
+        score: Math.min(Math.max(score, 0), 40),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       };
 
@@ -694,7 +968,7 @@
         }
       } catch (err) {
         if (rankTipEl) rankTipEl.innerText = "打卡累計音軌，榮登街坊光榮榜！";
-        if (listEl) listEl.innerHTML = '<div class="py-6 text-center text-stone-500 text-xs">正在建立榜單索引...</div>';
+        if (listEl) listEl.innerHTML = '<div class="py-6 text-center text-stone-500 text-xs">榜單連線中...</div>';
       }
     }
 
@@ -855,7 +1129,7 @@
         function() {}
       ).catch(function(err) {
         console.error("[The B-Side] Camera error:", err);
-        alert("無法開啟相機。請改用手機原生 Safari / Chrome 瀏覽器並允許相機權限。");
+        alert("無法開啟相機。若使用微信或WhatsApp，請點擊右上角「...」選擇改用 Safari / Chrome 開啟並允許相機權限。");
         closeScannerModal();
       });
     }
@@ -1244,12 +1518,14 @@
     }
 
     window.addEventListener("DOMContentLoaded", function() {
+      checkInAppBrowser();
       checkCDNAvailability();
       updateOnlineStatus();
       initFamilyAccounts();
       renderUI();
+      initAnonymousAuth();
       fetchAndRenderLeaderboard();
-      console.log("[The B-Side] Firebase connected & initialized:", firebaseConfig.projectId);
+      console.log("[The B-Side] Ready. Version:", APP_VERSION);
     });
   </script>
 </body>
