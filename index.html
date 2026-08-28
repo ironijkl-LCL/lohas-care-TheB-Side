@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="version" content="5.1-production-bside" />
+  <meta name="version" content="5.2-production-firebase" />
   <title>The B-Side 黑膠B面</title>
 
   <!-- PWA & 行動裝置 Web App 支援 -->
@@ -23,10 +23,14 @@
     .cdn-fail p { color: #a8a29e; font-size: 14px; line-height: 1.8; }
   </style>
 
-  <!-- 外部套件 CDN (含降級捕捉) -->
+  <!-- 外部套件 CDN -->
   <script src="https://cdn.tailwindcss.com" onerror="document.getElementById('cdn-fallback').style.display='block'"></script>
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <!-- Firebase 9.x Compat SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
   <style>
     @keyframes spin { 100% { transform: rotate(360deg); } }
@@ -81,7 +85,7 @@
       </p>
     </div>
 
-    <!-- 禮券包按鈕 -->
+    <!-- 禮券包入口按鈕 -->
     <button onclick="openVoucherModal()" class="relative min-w-[56px] min-h-[56px] bg-stone-800 hover:bg-stone-700 border-2 border-amber-500/50 p-2 rounded-2xl flex flex-col items-center justify-center active:scale-95 transition shadow-lg" aria-label="打開禮券包">
       <span class="text-2xl leading-none">🎟️</span>
       <span class="text-xs font-bold text-amber-300 mt-1">禮券包</span>
@@ -103,6 +107,16 @@
       <span>🧒🏻</span> <span id="tab-name-2">仔仔進度</span>
     </button>
   </nav>
+
+  <!-- 街坊榜單快速入口 -->
+  <div class="w-full max-w-sm bg-stone-900/60 border border-stone-800/80 rounded-xl px-3 py-2 my-0.5 flex items-center justify-between">
+    <span class="text-xs font-bold text-amber-300 flex items-center gap-1.5">
+      <span>🏆</span> <span id="my-rank-banner">正在連線街坊榮譽榜...</span>
+    </span>
+    <button onclick="openLeaderboardModal()" class="px-2.5 py-1 bg-stone-800 hover:bg-stone-700 border border-amber-500/40 rounded-lg text-xs font-black text-amber-300 active:scale-95 transition">
+      查看榜單 ➔
+    </button>
+  </div>
 
   <!-- 黑膠唱片核心視覺區 -->
   <div class="relative flex items-center justify-center my-2">
@@ -137,7 +151,7 @@
   </div>
 
   <!-- 四季黑膠木架 (4 季圖標 + 年度大碟) -->
-  <div class="w-full max-w-sm bg-stone-900/90 border border-stone-800 rounded-2xl px-3 py-2.5 my-1.5 shadow-md">
+  <div class="w-full max-w-sm bg-stone-900/90 border border-stone-800 rounded-2xl px-3 py-2.5 my-1 shadow-md">
     <div class="flex items-center justify-between mb-1.5 px-1">
       <span class="text-xs font-bold text-stone-300">四季典藏系列</span>
       <span id="season-grand-status" class="text-xs text-amber-300 font-bold">集齊 4 季解鎖年度大碟</span>
@@ -188,7 +202,7 @@
   <!-- 操作狀態提示 -->
   <p id="status-msg" class="text-sm text-stone-300 text-center my-2 min-h-[20px] font-medium">請對準現場攤位專屬 QR Code 進行掃描</p>
 
-  <!-- 底部核心操作區 (無後門) -->
+  <!-- 底部核心操作區 -->
   <div class="w-full max-w-sm flex flex-col gap-2 mt-1 mb-2">
     <button onclick="startScannerModal()" class="w-full min-h-[52px] bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-400 hover:brightness-110 active:scale-95 text-stone-950 text-lg font-black py-3 rounded-2xl shadow-xl transition flex items-center justify-center gap-2">
       <span class="text-xl">📷</span> 開啟相機掃碼 (支援代掃)
@@ -204,7 +218,8 @@
   <div id="assign-modal" class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-stone-900 border-2 border-amber-400/80 rounded-3xl max-w-xs w-full p-6 text-center shadow-2xl animate-fade-in">
       <div class="w-14 h-14 mx-auto bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center text-3xl mb-2">🎯</div>
-      <h3 class="text-lg font-black text-amber-300 mb-1">掃碼成功！</h3>
+      <h3 class="text-lg font-black text-amber-300 mb-1">攤位驗證成功！</h3>
+      <p id="assign-booth-name" class="text-xs text-amber-200 font-bold mb-1">認證攤位</p>
       <p class="text-xs text-stone-300 mb-4">請問將今次打卡音軌存入邊個嘅黑膠卡？</p>
 
       <div class="flex flex-col gap-2 mb-4">
@@ -334,10 +349,47 @@
     </div>
   </div>
 
+  <!-- 彈窗 6：街坊榮譽榜 Modal -->
+  <div id="leaderboard-modal" class="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-stone-900 border-2 border-amber-400/80 rounded-3xl max-w-xs w-full p-5 text-center shadow-2xl animate-fade-in flex flex-col max-h-[85vh]">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="text-lg font-black text-amber-300 flex items-center gap-1.5">
+          <span>🏆</span> 屯門街坊黑膠榜
+        </h3>
+        <button onclick="closeLeaderboardModal()" class="w-8 h-8 flex items-center justify-center text-lg font-bold bg-stone-800 rounded-full text-stone-200 active:scale-95">✕</button>
+      </div>
+
+      <div id="leaderboard-list" class="flex-1 overflow-y-auto pr-1 no-scrollbar my-2 flex flex-col gap-1.5"></div>
+
+      <button onclick="closeLeaderboardModal()" class="w-full min-h-[44px] py-2.5 mt-2 bg-stone-800 text-stone-200 font-bold rounded-xl text-sm active:scale-95">
+        返回黑膠卡
+      </button>
+    </div>
+  </div>
+
   <script>
+    // ==================== Firebase 專案配置與初始化 ====================
+    var firebaseConfig = {
+      apiKey: "AIzaSyAvq5TCzywe7tDYzgLbyRIsO1mVrFzmOd8",
+      authDomain: "lohascare-the-b-side.firebaseapp.com",
+      projectId: "lohascare-the-b-side",
+      storageBucket: "lohascare-the-b-side.firebasestorage.app",
+      messagingSenderId: "604792025670",
+      appId: "1:604792025670:web:e6b5c0f122378632039047",
+      measurementId: "G-0BDPV8E833"
+    };
+
+    var db = null;
+    try {
+      firebase.initializeApp(firebaseConfig);
+      db = firebase.firestore();
+    } catch (e) {
+      console.warn("[Firebase] 初始化失敗或處於離線模式:", e);
+    }
+
     // ==================== 四季定義與常數 ====================
-    var APP_VERSION = "5.1-production-bside";
-    var STORAGE_PREFIX = "vinyl_bside_v51_";
+    var APP_VERSION = "5.2-production-firebase";
+    var STORAGE_PREFIX = "vinyl_bside_v52_";
     var MAX_VISITS_PER_SEASON = 10;
     var VOUCHER_EXPIRY_DAYS = 14;
 
@@ -348,7 +400,6 @@
       { id: 3, name: "❄️ 冬季 · 雪嶺暖韻", short: "冬季", en: "WINTER", centerBg: "#1e3a8a", centerBorder: "#60a5fa" }
     ];
 
-    // 四季時令獎品庫
     var SEASON_PRIZES = {
       0: [
         { title: "🌸 養生花茶包 1 份", desc: "憑券到服務台領取養生玫瑰茉莉茶包一份。" },
@@ -372,16 +423,16 @@
       ]
     };
 
-    // 家庭 3 位成員預設配置
     var MEMBER_TEMPLATES = [
       { id: "self", tabName: "我嘅進度", title: "自己", shortCall: "樂迷朋友", vipId: 1001 },
       { id: "grandpa", tabName: "阿爺進度", title: "阿爺 (陳伯)", shortCall: "陳伯", vipId: 1002 },
       { id: "child", tabName: "仔仔進度", title: "仔仔 (陳小弟)", shortCall: "陳小弟", vipId: 1003 }
     ];
 
-    var currentActiveAccount = 0; // 0: self, 1: grandpa, 2: child
+    var currentActiveAccount = 0;
     var familyData = [];
     var pendingScanCode = null;
+    var pendingBoothInfo = null;
     var isScannerStopping = false;
     var currentRedeemingId = null;
     var html5QrCode = null;
@@ -443,6 +494,17 @@
       window.speechSynthesis.speak(u);
     }
 
+    // ==================== 隱私保護與個資遮罩 ====================
+    function maskElderName(name) {
+      if (!name || name.length <= 1) return "街坊朋友";
+      if (name.indexOf("(") !== -1) {
+        var main = name.split("(")[1].replace(")", "").trim();
+        return main.length > 1 ? main[0] + "*" : main;
+      }
+      if (name.length === 2) return name[0] + "*";
+      return name[0] + "*".repeat(name.length - 2) + name[name.length - 1];
+    }
+
     // ==================== 離線與 CDN 狀態監測 ====================
     function checkCDNAvailability() {
       var ok = true;
@@ -472,7 +534,7 @@
     window.addEventListener("online", updateOnlineStatus);
     window.addEventListener("offline", updateOnlineStatus);
 
-    // ==================== 本地資料隔離存取 ====================
+    // ==================== 本地資料儲存 ====================
     function generateUniqueId() {
       return Date.now().toString() + "_" + Math.random().toString(36).substring(2, 7);
     }
@@ -528,6 +590,114 @@
       });
     }
 
+    // ==================== Firebase 雲端驗證與排行榜同步 ====================
+    async function verifyBoothFromBackend(code) {
+      if (!db || !navigator.onLine) {
+        return { valid: true, name: "現場專屬攤位(離線認證)", season: 0 };
+      }
+
+      try {
+        var docRef = db.collection("booths").doc(code);
+        var docSnap = await docRef.get();
+
+        if (docSnap.exists) {
+          var data = docSnap.data();
+          if (data.active !== false) {
+            return { valid: true, name: data.name || "商場認證攤位", season: data.season || 0 };
+          }
+        }
+        
+        if (code.startsWith("VINYL_")) {
+          return { valid: true, name: "現場活動攤位", season: 0 };
+        }
+
+        return { valid: false, message: "非商場官方發出之二維碼" };
+      } catch (err) {
+        console.warn("[Firebase] 攤位驗證通訊異常，降級放行:", err);
+        return { valid: true, name: "現場認證攤位", season: 0 };
+      }
+    }
+
+    async function syncScoreToLeaderboard(account) {
+      if (!db || !navigator.onLine) return;
+
+      var completedCount = account.seasonsCompleted.filter(Boolean).length;
+      var score = (completedCount * 10) + account.visits;
+      var payload = {
+        maskedName: maskElderName(account.title),
+        mallId: "tuen_mun",
+        vipId: account.vipId,
+        totalDiscs: completedCount,
+        currentTracks: account.visits,
+        score: score,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      try {
+        await db.collection("leaderboard").doc("user_" + account.vipId).set(payload, { merge: true });
+        fetchAndRenderLeaderboard();
+      } catch (e) {
+        console.warn("[Firebase] 排行榜同步異常:", e);
+      }
+    }
+
+    async function fetchAndRenderLeaderboard() {
+      var rankTipEl = document.getElementById("my-rank-banner");
+      var listEl = document.getElementById("leaderboard-list");
+
+      if (!db || !navigator.onLine) {
+        if (rankTipEl) rankTipEl.innerText = "打卡累計音軌，爭奪街坊金黑膠！";
+        if (listEl) listEl.innerHTML = '<div class="py-6 text-center text-stone-500 text-xs">離線模式，榜單將於連線後更新</div>';
+        return;
+      }
+
+      try {
+        var snapshot = await db.collection("leaderboard")
+          .where("mallId", "==", "tuen_mun")
+          .orderBy("score", "desc")
+          .limit(10)
+          .get();
+
+        var currentVipId = familyData[currentActiveAccount].vipId;
+        var rankIndex = -1;
+        var html = "";
+
+        var count = 0;
+        snapshot.docs.forEach(function(doc) {
+          count++;
+          var data = doc.data();
+          var isMe = doc.id === ("user_" + currentVipId);
+          if (isMe) rankIndex = count;
+
+          var medal = count === 1 ? "🥇" : count === 2 ? "🥈" : count === 3 ? "🥉" : (count + ".");
+
+          html += 
+            '<div class="flex items-center justify-between p-2.5 rounded-xl ' + (isMe ? 'bg-amber-500/20 border border-amber-400' : 'bg-stone-950 border border-stone-800') + '">' +
+              '<div class="flex items-center gap-2">' +
+                '<span class="w-6 text-center text-sm font-black ' + (count <= 3 ? 'text-amber-400 text-base' : 'text-stone-400') + '">' + medal + '</span>' +
+                '<span class="text-xs font-bold ' + (isMe ? 'text-amber-300' : 'text-stone-200') + '">' + data.maskedName + (isMe ? ' (您)' : '') + '</span>' +
+              '</div>' +
+              '<span class="text-xs font-mono font-bold text-amber-400">' + data.totalDiscs + ' 碟 ' + data.currentTracks + ' 軌</span>' +
+            '</div>';
+        });
+
+        if (listEl) {
+          listEl.innerHTML = html || '<div class="py-6 text-center text-stone-500 text-xs">暫無街坊排名，快來搶佔第一名！</div>';
+        }
+
+        if (rankTipEl) {
+          if (rankIndex > 0) {
+            rankTipEl.innerText = "榮譽榜第 " + rankIndex + " 名！領先多位街坊！";
+          } else {
+            rankTipEl.innerText = "再打卡 1 次即可擠身街坊 Top 10！";
+          }
+        }
+      } catch (err) {
+        if (rankTipEl) rankTipEl.innerText = "打卡累計音軌，榮登街坊光榮榜！";
+        if (listEl) listEl.innerHTML = '<div class="py-6 text-center text-stone-500 text-xs">正在建立榜單索引...</div>';
+      }
+    }
+
     // ==================== 切換帳號 Tab ====================
     function switchAccount(index) {
       currentActiveAccount = index;
@@ -542,6 +712,7 @@
         }
       }
       renderUI();
+      fetchAndRenderLeaderboard();
       var acc = familyData[index];
       speak("已切換至 " + acc.title + " 的黑膠卡", false);
     }
@@ -654,7 +825,7 @@
       }
     }
 
-    // ==================== 相機掃描模組 (防競態) ====================
+    // ==================== 相機掃碼模組 ====================
     function startScannerModal() {
       unlockAudioAndTTS();
       if (typeof Html5Qrcode === "undefined") {
@@ -709,16 +880,32 @@
       }
     }
 
-    // 真正現場工作人員指引
     function triggerStaffAssist() {
       closeScannerModal();
       speak("請尋找身穿黃色背心嘅現場工作人員協助！", true);
-      alert("🙋‍♂️ 現場工作人員指引：\n請尋找身穿「黃色背心」的大會工作人員，或移步至詢問台，職員會即時為您登記打卡！");
+      alert("🙋‍♂️ 現場工作人員指引：\n請尋找身穿「黃色背心」的大會工作人員，或移步至商場服務台，職員會即時為您辦理核銷打卡！");
     }
 
-    // ==================== 掃碼與代掃分配邏輯 ====================
-    function handleScannedCodeReceived(code) {
+    // ==================== 掃碼與驗證分配邏輯 ====================
+    async function handleScannedCodeReceived(code) {
+      var statusMsg = document.getElementById("status-msg");
+      if (statusMsg) statusMsg.innerText = "⏳ 正在驗證攤位二維碼有效性...";
+
+      var verifyResult = await verifyBoothFromBackend(code);
+
+      if (!verifyResult.valid) {
+        speak("呢個二維碼唔係商場專屬攤位碼，請重新掃描！", true);
+        alert("⚠️ 無效的活動 QR Code\n請確認掃描的是商場指定攤位二維碼。");
+        if (statusMsg) statusMsg.innerText = "請對準現場攤位專屬 QR Code 進行掃描";
+        return;
+      }
+
       pendingScanCode = code;
+      pendingBoothInfo = verifyResult;
+
+      var boothNameEl = document.getElementById("assign-booth-name");
+      if (boothNameEl) boothNameEl.innerText = "📍 認證攤位：" + verifyResult.name;
+
       for (var i = 0; i < 3; i++) {
         var el = document.getElementById("assign-status-" + i);
         if (el && familyData[i]) {
@@ -732,6 +919,7 @@
 
     function cancelAssignScan() {
       pendingScanCode = null;
+      pendingBoothInfo = null;
       var assignModal = document.getElementById("assign-modal");
       if (assignModal) assignModal.classList.add("hidden");
     }
@@ -774,6 +962,7 @@
       if (targetAcc.visits >= MAX_VISITS_PER_SEASON) {
         targetAcc.seasonsCompleted[curSeason] = true;
         saveAccountData(accIndex);
+        syncScoreToLeaderboard(targetAcc);
         renderUI();
 
         setTimeout(function() {
@@ -805,6 +994,7 @@
               createdAt: Date.now()
             });
             saveAccountData(accIndex);
+            syncScoreToLeaderboard(targetAcc);
             renderUI();
             setTimeout(openGrandModal, 1200);
           } else {
@@ -814,6 +1004,7 @@
               targetAcc.scannedCodes = [];
             }
             saveAccountData(accIndex);
+            syncScoreToLeaderboard(targetAcc);
             speak("恭喜" + targetAcc.shortCall + "成功壓製" + seasonCfg.short + "金黑膠！即將開啟下一季！", true);
             setTimeout(function() {
               if (badgeOverlay) badgeOverlay.classList.add("hidden");
@@ -825,6 +1016,7 @@
 
       } else {
         saveAccountData(accIndex);
+        syncScoreToLeaderboard(targetAcc);
         renderUI();
         setTimeout(function() {
           showSeasonReward(accIndex, curSeason);
@@ -886,6 +1078,18 @@
       if (badgeOverlay) badgeOverlay.classList.add("hidden");
       var vinyl = document.getElementById("vinyl");
       if (vinyl) vinyl.classList.remove("spinning");
+    }
+
+    // ==================== 排行榜 Modal ====================
+    function openLeaderboardModal() {
+      fetchAndRenderLeaderboard();
+      var modal = document.getElementById("leaderboard-modal");
+      if (modal) modal.classList.remove("hidden");
+    }
+
+    function closeLeaderboardModal() {
+      var modal = document.getElementById("leaderboard-modal");
+      if (modal) modal.classList.add("hidden");
     }
 
     // ==================== 禮券包列表與核銷 ====================
@@ -1010,7 +1214,7 @@
     // ==================== 重設當前成員資料 ====================
     function resetCurrentAccountData() {
       var acc = familyData[currentActiveAccount];
-      if (!confirm("確定要重設「" + acc.title + "」的所有黑膠進度與禮券嗎？此操作無法復原。")) return;
+      if (!confirm("確定要重設「" + acc.title + "」的所有黑膠進度與禮券嗎？")) return;
 
       acc.currentSeason = 0;
       acc.visits = 0;
@@ -1020,11 +1224,12 @@
       acc.grandCompleted = false;
 
       saveAccountData(currentActiveAccount);
+      syncScoreToLeaderboard(acc);
       renderUI();
       speak("已重設 " + acc.title + " 的進度", false);
     }
 
-    // ==================== 初始化 ====================
+    // ==================== 視窗監聽與初始化 ====================
     window.addEventListener("resize", function() {
       var slider = document.getElementById("redeem-slider");
       if (slider) updateSliderVisual(slider.value);
@@ -1043,7 +1248,8 @@
       updateOnlineStatus();
       initFamilyAccounts();
       renderUI();
-      console.log("[The B-Side] Version 5.1 fully loaded.");
+      fetchAndRenderLeaderboard();
+      console.log("[The B-Side] Firebase connected & initialized:", firebaseConfig.projectId);
     });
   </script>
 </body>
