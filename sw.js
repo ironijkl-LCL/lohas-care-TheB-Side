@@ -1,47 +1,35 @@
-const CACHE_NAME = 'vinyl-pwa-v1';
-
-// 核心快取資源清單
-const ASSETS_TO_CACHE = [
-  './',
-  './index.html',
-  './manifest.json',
-  'https://cdn.tailwindcss.com',
-  'https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js',
-  'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js'
+const CACHE_NAME = "bside-shell-v5.5";
+const ASSETS = [
+  "./",
+  "./index.html",
+  "./manifest.json",
+  "https://cdn.tailwindcss.com",
+  "https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js",
+  "https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"
 ];
 
-// 安裝 Service Worker 並快取核心資源
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    }).then(() => self.skipWaiting())
+self.addEventListener("install", (e) => {
+  e.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
   );
+  self.skipWaiting();
 });
 
-// 啟動並清理舊版本快取
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cache) => {
-          if (cache !== CACHE_NAME) {
-            return caches.delete(cache);
-          }
-        })
-      );
-    }).then(() => self.clients.claim())
+self.addEventListener("activate", (e) => {
+  e.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
+    )
   );
+  self.clients.claim();
 });
 
-// 攔截網絡請求：優先讀取快取，離線可用
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-      return fetch(event.request);
-    })
+self.addEventListener("fetch", (e) => {
+  // 對於 Firebase API 請求一律走網路，其餘靜態檔走 Cache First
+  if (e.request.url.includes("firestore.googleapis.com") || e.request.url.includes("cloudfunctions.net")) {
+    return;
+  }
+  e.respondWith(
+    caches.match(e.request).then((res) => res || fetch(e.request))
   );
 });
